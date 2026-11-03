@@ -1,0 +1,51 @@
+subject	subject_name	object	object_name	sdeg	odeg	min_degree	score	primary_knowledge_source	subject_type	object_type
+UNII:F8H3J9KSY9	Astodrimer	UMLS:C1136254	Microbicides	1	1	1	-111.40933912393254	infores:drugcentral	biolink:ChemicalEntity	biolink:Drug
+UNII:7SI2UZG934	Condoliase	UMLS:C2733598	Disorder of lumbar disc	1	1	1	-110.62998318059769	infores:drugcentral	biolink:ChemicalEntity	biolink:Disease
+CHEMBL.COMPOUND:CHEMBL2108183	crilanomer	UMLS:C3266799	Wound dressing	1	1	1	-108.73097197343546	infores:drugcentral	biolink:ChemicalEntity	biolink:PhenotypicFeature
+UNII:WLT3PF2KX0	air polymer-type A	UMLS:C1960340	Fertiloscopy	1	1	1	-108.45544945443777	infores:drugcentral	biolink:ChemicalEntity	biolink:Procedure
+UNII:538316W9ZU	Besilesomab	UMLS:C0034606	Radionuclide Imaging	1	2	1	-108.32215385966794	infores:drugcentral	biolink:ChemicalEntity	biolink:Procedure
+CHEMBL.COMPOUND:CHEMBL1615807	indocyanine green	UMLS:C0203827	Lymphatics and lymph gland imaging	2	1	1	-108.24851194980512	infores:drugcentral	biolink:SmallMolecule	biolink:Procedure
+UNII:1N9O74Y20W	NOFETUMOMAB	UMLS:C0034606	Radionuclide Imaging	1	2	1	-107.99835855764687	infores:drugcentral	biolink:ChemicalEntity	biolink:Procedure
+UNII:S276568KOY	Gadopiclenol	UMLS:C1512628	Medicinal product acting as imaging agent (product)	1	1	1	-107.79932975192705	infores:drugcentral	biolink:MolecularMixture	biolink:ChemicalEntity
+PUBCHEM.COMPOUND:9952872	zabofloxacin	UMLS:C0563269	Acute infective exacerbation of chronic obstructive pulmonary disease	1	1	1	-107.14768720311957	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:X89XV46R07	technetium Tc 99m medronate	UMLS:C0203668	Radioisotope scan of bone	1	2	1	-106.55735557393933	infores:drugcentral	biolink:MolecularMixture	biolink:Procedure
+CHEMBL.COMPOUND:CHEMBL1615807	indocyanine green	UMLS:C0412366	Scanning or imaging with vascular flow	2	1	1	-106.20444265787461	infores:drugcentral	biolink:SmallMolecule	biolink:Procedure
+UNII:Y68179SY2L	Ga-68-Dotatoc	UMLS:C4707060	Positron emission tomography with computed tomography of whole body using gallium (68-Ga) dotatate	2	1	1	-105.34027591629199	infores:drugcentral	biolink:MolecularMixture	biolink:Procedure
+UNII:709B6VM65P	Sulesomab	UMLS:C0203668	Radioisotope scan of bone	1	2	1	-104.73977520123886	infores:drugcentral	biolink:ChemicalEntity	biolink:Procedure
+UNII:2PU6O23V1G	Sutilain	UMLS:C0191342	Debridement of wound of skin	1	1	1	-103.99703831112004	infores:drugcentral	biolink:ChemicalEntity	biolink:Procedure
+UNII:7SEV7J4R1U	talc	UMLS:C3161098	Secondary spontaneous pneumothorax	1	1	1	-102.87358558889026	infores:drugcentral	biolink:ChemicalEntity	biolink:Disease
+CHEBI:30069	Prussian blue	MONDO:0041996	thallium poisoning	2	2	2	-101.780372851628	infores:drugcentral	biolink:Drug	biolink:Disease
+UNII:9R3D3Y0UHS	Elapegademase	UMLS:C0272230	SCID (severe combined immunodeficiency) due to absent adenosine deaminase	2	1	1	-100.6479669462927	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:SB96YO2BR8	Tecovirimat monohydrate	MONDO:0005720	cowpox	4	3	3	-98.73824356055437	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+PUBCHEM.COMPOUND:6324599	brilliant Blue G	UMLS:C0487602	Staining method	7	1	1	-97.34371518180953	infores:drugcentral	biolink:MolecularMixture	biolink:Procedure
+UNII:SB96YO2BR8	Tecovirimat monohydrate	MONDO:0002594	monkeypox	4	4	4	-96.69678707483403	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+CHEBI:135890	Pralmorelin	UMLS:C0430127	Growth hormone releasing hormone test	4	1	1	-96.39991181452612	infores:drugcentral	biolink:SmallMolecule	biolink:Procedure
+UNII:JD24M53P9U	Anacaulase	UMLS:C0423778	Skin eschar	1	2	1	-95.63410082406605	infores:drugcentral	biolink:Drug	biolink:Disease
+CHEBI:135857	Bemotrizinol	UMLS:C0038818	Sunscreening Agents	2	3	2	-94.64167161907656	infores:drugcentral	biolink:SmallMolecule	biolink:ChemicalEntity
+UNII:6K6L7E3F1L	Gefapixant	UMLS:C4552486	Chronic refractory cough	6	1	1	-94.3477878969388	infores:drugcentral	biolink:SmallMolecule	biolink:PhenotypicFeature
+UNII:SB96YO2BR8	Tecovirimat monohydrate	MONDO:0004651	smallpox	4	5	4	-94.04192639457492	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:F7BD3Z4X8L	Pafolacianine	UMLS:C4708071	Tumor imaging agent	3	1	1	-93.93681344964234	infores:drugcentral	biolink:SmallMolecule	biolink:ChemicalEntity
+UNII:X8R2D92QP1	Cerliponase alfa	MONDO:0015674	late infantile neuronal ceroid lipofuscinosis	2	13	2	-93.591435246604	infores:drugcentral	biolink:Drug	biolink:Disease
+CHEBI:80345	Cholecystokinin	UMLS:C0030291	Pancreatic Function Test	9	1	1	-93.51860060618311	infores:drugcentral	biolink:SmallMolecule	biolink:Procedure
+CHEBI:135312	Sulisobenzone	UMLS:C0038818	Sunscreening Agents	2	3	2	-92.76136909392164	infores:drugcentral	biolink:SmallMolecule	biolink:ChemicalEntity
+UNII:0P70AR5BYB	Difelikefalin Acetate	UMLS:C1262019	Uremic pruritus	7	1	1	-91.63025100887029	infores:drugcentral	biolink:SmallMolecule	biolink:PhenotypicFeature
+CHEBI:135132	Ensulizole	UMLS:C0038818	Sunscreening Agents	2	3	2	-90.98818078878438	infores:drugcentral	biolink:SmallMolecule	biolink:ChemicalEntity
+UNII:WKM56H3TLB	Myrcludex B	UMLS:C4543747	Chronic viral hepatitis D	4	1	1	-90.95850770453768	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:BDT58WJ9WE	LENACAPAVIR SODIUM	UMLS:C0276500	Human immunodeficiency virus I infection	3	3	3	-90.69427562471179	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:9R3D3Y0UHS	Elapegademase	MONDO:0007064	severe combined immunodeficiency, autosomal recessive, T cell-negative, B cell-negative, NK cell-negative, due to adenosine deaminase deficiency	2	79	2	-90.29974587347493	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+PUBCHEM.COMPOUND:23279496	uridine triacetate	UMLS:C0572583	Antimetabolite overdose	2	1	1	-89.47646965945393	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+PUBCHEM.COMPOUND:118988661	prepopik	UMLS:C0009378	colonoscopy	1	2	1	-88.71104987038213	infores:drugcentral	biolink:MolecularMixture	biolink:Procedure
+UNII:HW3H7D91F6	Pegademase	MONDO:0007064	severe combined immunodeficiency, autosomal recessive, T cell-negative, B cell-negative, NK cell-negative, due to adenosine deaminase deficiency	2	79	2	-87.64771900581653	infores:drugcentral	biolink:ChemicalEntity	biolink:Disease
+UNII:7XZ4062R17	Vestronidase alfa	MONDO:0009662	Sly syndrome	1	107	1	-86.05683227521575	infores:drugcentral	biolink:Drug	biolink:Disease
+UNII:7V6HE3DM5A	Ocriplasmin	UMLS:C0730274	Vitreomacular traction syndrome	4	1	1	-85.67023743855819	infores:drugcentral	biolink:Drug	biolink:Disease
+UNII:N7T15V1FUY	Setmelanotide	UMLS:C5191640	Obesity due to leptin receptor gene deficiency	19	1	1	-85.65538579149235	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:Y6BX7BL23K	Pemigatinib	MONDO:0013296	myeloid neoplasm associated with FGFR1 rearrangement	17	3	3	-85.50627950582589	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:8A7F670F2Y	Sacrosidase	MONDO:0009114	congenital sucrase-isomaltase deficiency	2	33	2	-83.67738465622578	infores:drugcentral	biolink:Drug	biolink:Disease
+UNII:WKM56H3TLB	Myrcludex B	UMLS:C0400918	Chronic viral hepatitis B with hepatitis D	4	2	2	-83.6421567032849	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:3934EF02T7	Piflufolastat F 18	UMLS:C0032743	Positron-Emission Tomography	3	14	3	-82.97356103903194	infores:drugcentral	biolink:SmallMolecule	biolink:Procedure
+CHEBI:81567	Thyrotropin	UMLS:C1271701	Serum thyroglobulin level	7	1	1	-82.95187288210307	infores:drugcentral	biolink:Drug	biolink:Procedure
+CHEBI:229657	Lotilaner	UMLS:C1274557	Demodectic blepharitis	9	1	1	-82.67229173712379	infores:drugcentral	biolink:SmallMolecule	biolink:Disease
+UNII:XD423NK2WO	Posluma (TN)	UMLS:C0032743	Positron-Emission Tomography	2	14	2	-82.25964686340676	infores:drugcentral	biolink:MolecularMixture	biolink:Procedure
+UNII:N658GY6L3E	Tebentafusp	UMLS:C4725091	Metastatic Uveal Melanoma	13	6	6	-82.17669375075884	infores:drugcentral	biolink:Drug	biolink:Disease
+CHEBI:135053	etoxazene	NCIT:C83493	Urinary Tract Pain	2	5	2	-82.12871353655751	infores:drugcentral	biolink:SmallMolecule	biolink:PhenotypicFeature
+CHEBI:136050	Ozenoxacin	UMLS:C0342985	Superficial bacterial infection of skin	7	2	2	-82.06139599573018	infores:drugcentral	biolink:SmallMolecule	biolink:Disease

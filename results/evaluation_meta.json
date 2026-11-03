@@ -1,0 +1,57 @@
+{
+  "positive": "biolink:treats",
+  "negative": "biolink:contraindicated_in",
+  "seeds": 10,
+  "prevalence": 0.8690036274875411,
+  "chosen_nu": {
+    "concat": [
+      0.6,
+      0.6,
+      0.6,
+      0.7,
+      0.5,
+      0.6,
+      0.6,
+      0.6,
+      0.6,
+      0.7
+    ],
+    "residual": [
+      0.2,
+      0.1,
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.1,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "distance": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "degree": [
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1
+    ]
+  },
+  "note": "no negative sampling; variance is across positive splits"
+}

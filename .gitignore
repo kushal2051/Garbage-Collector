@@ -1,0 +1,26 @@
+# ---- large inputs, never committed -----------------------------------------
+*.npy
+*.npz
+SVM.zip
+__MACOSX/
+
+# ---- stage 1/2 products: regenerable, 20-40 MB each ------------------------
+out/edges.tsv
+out/degrees.tsv
+
+# ---- stage 3/4b bulk outputs -----------------------------------------------
+out/ranked_*.tsv
+out/original_*/OneClassSVM_Results_*.csv
+out/*.svg
+
+# ---- committed by hand into results/ instead -------------------------------
+logs/*.log
+
+# ---- tooling ---------------------------------------------------------------
+node_modules/
+package-lock.json
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.idea/
