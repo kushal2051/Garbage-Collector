@@ -80,13 +80,13 @@ rots = np.load(EMB / "relation_rotations.npy")
 D = nodes.shape[1] // 2
 
 idx = pd.read_csv(EMB / "node_index.tsv", sep="\t", usecols=["node_id", "curie"])
-row_of = dict(zip(idx.curie, idx.node_id))
+row_of = dict(zip(idx.curie, idx.node_id, strict=False))
 rel = pd.read_csv(EMB / "relation_index.tsv", sep="\t")
-rel_of = dict(zip(rel.predicate, rel.relation_id))
+rel_of = dict(zip(rel.predicate, rel.relation_id, strict=False))
 RID = rel_of[args.positive]                       # always the positive relation
 
 deg = pd.read_csv(HERE / "out/degrees.tsv", sep="\t")
-degree = dict(zip(deg.curie, deg.in_degree + deg.out_degree))
+degree = dict(zip(deg.curie, deg.in_degree + deg.out_degree, strict=False))
 
 edges = pd.read_csv(HERE / "out/edges.tsv", sep="\t")
 
@@ -196,7 +196,7 @@ res = pd.DataFrame(rows).sort_values("roc_auc_mean", ascending=False)
 print("\n=== test set: %d draws, %d normals + %d anomalies each ==="
       % (args.draws, len(test_i),
          min(int(args.anomaly_ratio * len(test_i)), len(neg_test_pool))))
-print(res.to_string(index=False, float_format=lambda v: "%.3f" % v))
+print(res.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
 print("\nPR AUC baseline (prevalence) = %.3f"
       % (args.anomaly_ratio / (1 + args.anomaly_ratio)))
 
@@ -204,7 +204,7 @@ print("\nPR AUC baseline (prevalence) = %.3f"
 print("\n=== held-out positives split by whether endpoints were in the fit set ===")
 both_seen = np.array([(s in seen_nodes) and (o in seen_nodes)
                       for s, o in zip(pos.subject.iloc[test_i],
-                                      pos.object.iloc[test_i])])
+                                      pos.object.iloc[test_i], strict=False)])
 print("both endpoints seen %d   at least one unseen %d"
       % (both_seen.sum(), (~both_seen).sum()))
 sub_rows = []
@@ -221,7 +221,7 @@ for name in MODELS:
         row[label] = roc_auc_score(y, np.concatenate([s_pos[mask], s_neg]))
     sub_rows.append(row)
 print(pd.DataFrame(sub_rows).to_string(index=False,
-                                       float_format=lambda v: "%.3f" % v))
+                                       float_format=lambda v: f"{v:.3f}"))
 
 out = HERE / "out"
 res.to_csv(out / "evaluation_auc.tsv", sep="\t", index=False)

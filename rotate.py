@@ -4,6 +4,7 @@ This exists so detect.py, evaluate.py and the replication cannot drift from one
 another: the node layout ([re | im], 256 complex dims in 512 real columns) and
 the rotation algebra are written once, here.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -15,25 +16,26 @@ class Embeddings:
     it is 1.9 GB on disk and only the rows we index are read)."""
 
     def __init__(self):
-        config.require(config.EMB / "node_embeddings.npy",
-                       config.EMB / "node_index.tsv",
-                       config.EMB / "relation_index.tsv",
-                       config.EMB / "relation_rotations.npy")
+        config.require(
+            config.EMB / "node_embeddings.npy",
+            config.EMB / "node_index.tsv",
+            config.EMB / "relation_index.tsv",
+            config.EMB / "relation_rotations.npy",
+        )
         self.nodes = np.load(config.EMB / "node_embeddings.npy", mmap_mode="r")
         self.rots = np.load(config.EMB / "relation_rotations.npy")
-        self.D = self.nodes.shape[1] // 2        # complex dims
+        self.D = self.nodes.shape[1] // 2  # complex dims
 
-        idx = pd.read_csv(config.EMB / "node_index.tsv", sep="\t",
-                          usecols=["node_id", "curie"])
+        idx = pd.read_csv(config.EMB / "node_index.tsv", sep="\t", usecols=["node_id", "curie"])
         self.curies = idx.curie.values
-        self.row_of = dict(zip(idx.curie, idx.node_id))
+        self.row_of = dict(zip(idx.curie, idx.node_id, strict=False))
 
         rel = pd.read_csv(config.EMB / "relation_index.tsv", sep="\t")
-        self.rel_of = dict(zip(rel.predicate, rel.relation_id))
+        self.rel_of = dict(zip(rel.predicate, rel.relation_id, strict=False))
 
     def relation_id(self, predicate):
         if predicate not in self.rel_of:
-            raise SystemExit("predicate %r not in relation_index.tsv" % predicate)
+            raise SystemExit(f"predicate {predicate!r} not in relation_index.tsv")
         return self.rel_of[predicate]
 
     def vectors(self, rows):
@@ -41,8 +43,10 @@ class Embeddings:
 
     def rotation(self, rid):
         """(cos, sin) of the relation's per-dimension phase."""
-        return (self.rots[rid, :self.D].astype(np.float64),
-                self.rots[rid, self.D:].astype(np.float64))
+        return (
+            self.rots[rid, : self.D].astype(np.float64),
+            self.rots[rid, self.D :].astype(np.float64),
+        )
 
 
 def map_pairs(edges, predicate, row_of):
@@ -73,17 +77,16 @@ def rotate_distance(emb, e, rid):
     D = emb.D
     zre = h[:, :D] * c - h[:, D:] * s - t[:, :D]
     zim = h[:, :D] * s + h[:, D:] * c - t[:, D:]
-    mod = np.sqrt(zre ** 2 + zim ** 2)
-    return np.sqrt((mod ** 2).sum(1)), mod.sum(1)
+    mod = np.sqrt(zre**2 + zim**2)
+    return np.sqrt((mod**2).sum(1)), mod.sum(1)
 
 
 def context(e):
     """Node degree and node type for both endpoints, so a flag can be read."""
     deg = pd.read_csv(config.DEGREES_TSV, sep="\t")
-    degree = dict(zip(deg.curie, deg.in_degree + deg.out_degree))
-    types = pd.read_csv(config.NODE_TYPES, sep="\t",
-                        usecols=["curie", "selected_type"])
-    type_of = dict(zip(types.curie, types.selected_type))
+    degree = dict(zip(deg.curie, deg.in_degree + deg.out_degree, strict=False))
+    types = pd.read_csv(config.NODE_TYPES, sep="\t", usecols=["curie", "selected_type"])
+    type_of = dict(zip(types.curie, types.selected_type, strict=False))
 
     e["subject_type"] = e.subject.map(type_of)
     e["object_type"] = e.object.map(type_of)

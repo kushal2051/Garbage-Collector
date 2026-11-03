@@ -10,22 +10,27 @@ them with an environment variable, so the repo runs elsewhere without edits:
     ROTATE_DEG_SRC edges.tsv (subject/predicate/object) for the global degree count
     ROTATE_OUT     where stage outputs are written (default: <repo>/out)
 """
+
 import os
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
-EMB = Path(os.environ.get(
-    "ROTATE_EMB",
-    "/work/users/k/k/kkoirala/nvidia-hackathon/rotate_original_embeddings"))
+EMB = Path(
+    os.environ.get(
+        "ROTATE_EMB", "/work/users/k/k/kkoirala/nvidia-hackathon/rotate_original_embeddings"
+    )
+)
 
-GRAPH = Path(os.environ.get(
-    "ROTATE_GRAPH",
-    "/work/users/k/k/kkoirala/n2v2sae/graphs/robokop_30fd_filtered"))
+GRAPH = Path(
+    os.environ.get("ROTATE_GRAPH", "/work/users/k/k/kkoirala/n2v2sae/graphs/robokop_30fd_filtered")
+)
 
-DEG_SRC = Path(os.environ.get(
-    "ROTATE_DEG_SRC",
-    "/work/users/k/k/kkoirala/CyclopsHGT/data_set/30fd_robo/edges.tsv"))
+DEG_SRC = Path(
+    os.environ.get(
+        "ROTATE_DEG_SRC", "/work/users/k/k/kkoirala/CyclopsHGT/data_set/30fd_robo/edges.tsv"
+    )
+)
 
 OUT = Path(os.environ.get("ROTATE_OUT", HERE / "out"))
 
@@ -44,10 +49,11 @@ def require(*paths):
     """Fail now, with the variable to set, rather than deep inside a stage."""
     missing = [p for p in paths if not Path(p).exists()]
     if missing:
+        listed = "\n  ".join(str(m) for m in missing)
         raise SystemExit(
-            "missing input(s):\n  %s\n\nSet ROTATE_EMB / ROTATE_GRAPH / "
+            f"missing input(s):\n  {listed}\n\nSet ROTATE_EMB / ROTATE_GRAPH / "
             "ROTATE_DEG_SRC, or run the earlier stage that produces them."
-            % "\n  ".join(str(m) for m in missing))
+        )
 
 
 def refuse_overwrite(*paths):
@@ -56,6 +62,6 @@ def refuse_overwrite(*paths):
     existing = [p for p in paths if Path(p).exists()]
     if existing:
         raise SystemExit(
-            "refusing to overwrite:\n  %s\n\nPass a different --out-prefix/--tag, "
-            "or move the previous result aside."
-            % "\n  ".join(str(p) for p in existing))
+            "refusing to overwrite:\n  {}\n\nPass a different --out-prefix/--tag, "
+            "or move the previous result aside.".format("\n  ".join(str(p) for p in existing))
+        )
