@@ -10,14 +10,15 @@ one-flag change rather than a re-read.
 
 Usage:  python extract_edges.py
 """
+
 import collections
 import json
 
 import config
 
 WANTED = {
-    "biolink:treats",                                 # positives
-    "biolink:contraindicated_in",                     # evaluation negatives
+    "biolink:treats",  # positives
+    "biolink:contraindicated_in",  # evaluation negatives
     "biolink:treats_or_applied_or_studied_to_treat",
     "biolink:ameliorates_condition",
     "biolink:preventative_for_condition",
@@ -27,8 +28,10 @@ WANTED = {
 HINTS = ("treat", "ameliorat", "preventative", "contraindicat", "adverse")
 
 QUAL_KEYS = (
-    "subject_aspect_qualifier", "subject_direction_qualifier",
-    "object_aspect_qualifier", "object_direction_qualifier",
+    "subject_aspect_qualifier",
+    "subject_direction_qualifier",
+    "object_aspect_qualifier",
+    "object_direction_qualifier",
     "qualified_predicate",
 )
 
@@ -53,19 +56,24 @@ with open(config.EDGES_TSV, "w") as fh:
         quals = {k: d[k] for k in QUAL_KEYS if d.get(k)}
         if quals:
             qual_seen[(p, tuple(sorted(quals)))] += 1
-        fh.write("{}\t{}\t{}\t{}\t{}\n".format(
-            d["subject"], p, d["object"],
-            d.get("primary_knowledge_source", ""),
-            json.dumps(quals, separators=(",", ":")) if quals else ""))
+        fh.write(
+            "{}\t{}\t{}\t{}\t{}\n".format(
+                d["subject"],
+                p,
+                d["object"],
+                d.get("primary_knowledge_source", ""),
+                json.dumps(quals, separators=(",", ":")) if quals else "",
+            )
+        )
         kept += 1
 
 with open(config.OUT / "census.txt", "w") as fh:
-    fh.write("kept\t%d\n\n# predicate census among prefilter-matching lines\n" % kept)
+    fh.write(f"kept\t{kept}\n\n# predicate census among prefilter-matching lines\n")
     for p, n in census.most_common():
-        fh.write("%s\t%d\n" % (p, n))
+        fh.write(f"{p}\t{n}\n")
     fh.write("\n# qualified rows among WANTED predicates (expected: none)\n")
     for (p, ks), n in qual_seen.most_common():
-        fh.write("%s\t%s\t%d\n" % (p, ",".join(ks), n))
+        fh.write("{}\t{}\t{}\n".format(p, ",".join(ks), n))
 
 print("kept", kept, "edges ->", config.EDGES_TSV)
 print("census:", dict(census.most_common(12)))

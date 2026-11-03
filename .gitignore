@@ -18,7 +18,24 @@ logs/*.log
 
 # ---- tooling ---------------------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
 .venv/
-.DS_Store
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+
+# ---- secrets and local config ----------------------------------------------
+.env
+.env.*
+*.key
+.claude/settings.local.json
+
+# ---- editors and OS --------------------------------------------------------
+.vscode/
 .idea/
+.DS_Store
+*.swp
+.ipynb_checkpoints/

@@ -10,6 +10,7 @@ documented dangling self-loops, which are irrelevant to a degree count.
 
 Usage:  python degrees.py
 """
+
 import collections
 
 import config
@@ -33,5 +34,5 @@ nodes = set(indeg) | set(outdeg)
 with open(config.DEGREES_TSV, "w") as fh:
     fh.write("curie\tin_degree\tout_degree\n")
     for c in nodes:
-        fh.write("%s\t%d\t%d\n" % (c, indeg[c], outdeg[c]))
+        fh.write(f"{c}\t{indeg[c]}\t{outdeg[c]}\n")
 print("edges", n, "nodes with any degree", len(nodes), "->", config.DEGREES_TSV)

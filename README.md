@@ -102,7 +102,22 @@ stage refuses to overwrite an existing result, and validates its inputs in the
 first second rather than after an hour of compute.
 
 Submit from the repo root. Nothing is run on a login node. See
-`.claude/skills/slurm-run`.
+`.agents/skills/anomaly/slurm-run`.
+
+### Development
+
+```bash
+make setup     # uv sync --dev
+make test      # ruff check + ruff format --check, then pytest -q
+make skills    # refresh .claude/skills symlinks from .agents/skills
+```
+
+Conventions follow [KGB-CIA](https://github.com/UNC-RENCI-KGAI/KGB-CIA): `AGENTS.md` rather than
+`CLAUDE.md`, canonical skills under `.agents/skills/<category>/<skill-name>/`, ruff at line
+length 100 with rules `E F I W UP B`. This repository is standalone and is not merged into
+KGB-CIA. See [`AGENTS.md`](AGENTS.md).
+
+The tests need no embeddings, no graph and no network.
 
 ### Configuration
 
@@ -129,8 +144,10 @@ replicate_original.py        stage 4b — faithful port of the pre-RotatE method
 plot_rbf.py                  with GraphSAGE swapped for RotatE
 legacy/                      superseded, kept as a cross-check
 slurm/                       env.sh (all site config) + one .sbatch per stage
+tests/                       rotation algebra and the two guards, no data needed
 results/                     small committed outputs of the completed run
-.claude/skills/              how to run and read this correctly
+.agents/skills/anomaly/      how to run and read this correctly
+.claude/skills/              generated symlinks (make skills)
 ```
 
 ## Scope
