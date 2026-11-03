@@ -63,6 +63,29 @@ score — is the usable garbage-collection output.
 `results/replication_rbf/check_flagged.cypher` confirms them against upstream
 ROBOKOP rather than the filtered subgraph.
 
+## Outputs
+
+Every deliverable is a TSV or CSV. The figures that the plotting scripts produce
+are diagnostics, not products.
+
+| file | what it holds |
+|---|---|
+| `out/gc_candidates_<slug>.tsv` | **the deliverable.** Flagged edges, most anomalous first: endpoints, both node types, both degrees, `min_degree`, `type_rule_violation`, `primary_knowledge_source`, `score`, `rotate_dist_l2`, `rotate_dist_l1` |
+| `out/ranked_<slug>.tsv` | the same columns for *every* edge, not just the flagged ones — use it to pick a different threshold |
+| `out/top50_<slug>.tsv` | the 50 most anomalous, for hand-reading |
+| `out/summary_<slug>.tsv` | one row: flag count and rate, score-vs-degree Spearman, median degree flagged vs unflagged, type-rule violation rate on each side |
+| `out/evaluation_summary.tsv` | one row per model: ROC/PR AUC mean, std, min, max, and `kind` (`svm` or `baseline`) |
+| `out/evaluation_per_seed.tsv` | the same, per seed, with the `nu` chosen on that seed's validation split |
+| `out/evaluation_seen_unseen.tsv` | per model and seed, AUC split by whether both endpoints were in the fit set |
+| `out/evaluation_meta.json` | the run's configuration, including `prevalence` — needed to read any PR AUC |
+| `out/original_<slug><tag>/OneClassSVM_Results_<slug>.csv` | the replication's per-edge ±1 predictions |
+| `out/original_<slug><tag>/grid_search.csv` | the 32-point grid, scored |
+| `out/census.txt` | predicate census over the source graph, from stage 1 |
+
+To triage candidates, sort `gc_candidates_<slug>.tsv` by `type_rule_violation`
+first and `score` second: those rows are wrong by the type rule regardless of
+what the model thinks.
+
 ## Pipeline
 
 ```bash
@@ -100,14 +123,14 @@ only indexed rows are read), the source graph larger still.
 ```
 config.py rotate.py          paths; embedding loading and rotation algebra
 extract_edges.py degrees.py  stages 1-2
-detect.py plot_explain.py    stage 3 — the detector and its figure
+detect.py plot_explain.py    stage 3 — the detector and its diagnostic figure
 evaluate.py                  stage 4 — treats vs contraindicated_in
 replicate_original.py        stage 4b — faithful port of the pre-RotatE method,
 plot_rbf.py                  with GraphSAGE swapped for RotatE
 legacy/                      superseded, kept as a cross-check
 slurm/                       env.sh (all site config) + one .sbatch per stage
 results/                     small committed outputs of the completed run
-.claude/skills/              how to run, read and present this correctly
+.claude/skills/              how to run and read this correctly
 ```
 
 ## Scope
@@ -131,7 +154,7 @@ positive split. The two agree within 0.01 on all four models —
 ## Reproducing
 
 `results/` holds the stage-4 evaluation, the replication's grid search, flagged
-list, Cypher checks and figure. **Stage 3's own outputs are not committed**: the
+list and Cypher checks. **Stage 3's own outputs are not committed**: the
 ones on disk were produced before `residual` was removed, so `ranked_*.tsv` was
 sorted by a score the pipeline no longer computes. One `sbatch
 slurm/detect.sbatch` regenerates them, now including the `type_rule_violation`

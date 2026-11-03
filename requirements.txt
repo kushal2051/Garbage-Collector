@@ -8,6 +8,3 @@ matplotlib
 # Stage 4b (replicate_original.py) only. It is in a separate env on Longleaf --
 # see slurm/env.sh, PYTHON_UMAP -- because the main env lacks it.
 umap-learn
-
-# The deck is Node, not Python: presentation/package.json (pptxgenjs).
-# On Longleaf: module load nodejs/24.16.0

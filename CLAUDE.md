@@ -13,7 +13,6 @@ visible in the code:
 | run/extend a stage, add a predicate | `.claude/skills/kg-anomaly-pipeline` |
 | submit anything to the cluster | `.claude/skills/slurm-run` |
 | read, quote or present an AUC | `.claude/skills/read-eval-results` |
-| rebuild a figure or the deck | `.claude/skills/build-deck` |
 
 ## Hard rules
 
@@ -30,6 +29,10 @@ visible in the code:
 5. **The negative result is the result.** The trained detector loses to the
    untrained RotatE distance. Do not tune to make that go away, and do not
    report around it.
+6. **Every deliverable is a TSV or CSV.** This repo emits tables, not slides.
+   The figures that remain are diagnostics; whatever a figure shows must also
+   be readable from a table, so add the number to a stage's output rather than
+   leaving it visible only in a plot. Do not add a deck builder back.
 
 ## Layout
 

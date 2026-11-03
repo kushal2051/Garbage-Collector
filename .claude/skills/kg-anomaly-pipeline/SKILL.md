@@ -45,6 +45,11 @@ number mean anything. Do not drop them from an evaluation; see
 `out/gc_candidates_<slug>.tsv` is the deliverable: flagged edges, most anomalous
 first, each with the context needed to triage it.
 
+Every product of this repo is a TSV or CSV — see the Outputs table in the
+README. The figures are diagnostics. If a result is only visible in a plot, add
+the number to a stage's output instead; and do not add a slide-deck builder,
+which was deliberately removed.
+
 The column that carries the most weight is `type_rule_violation`. A
 `biolink:treats` edge must point at a `biolink:Disease` or a
 `biolink:PhenotypicFeature` (`config.VALID_TREATS_OBJECT_TYPES`); anything else
