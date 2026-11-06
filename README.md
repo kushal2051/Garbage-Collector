@@ -36,8 +36,8 @@ Chance is 0.500. So:
 
 Splitting held-out positives by whether the SVM had seen both endpoints during
 fitting (`results/evaluation_seen_unseen.tsv`) shows most of what skill exists is
-memorisation: `concat` 0.520 → 0.225 and `distance` 0.881 → 0.685 when an
-endpoint is new.
+memorisation: `concat` 0.528 → 0.219 and `distance` 0.886 → 0.671 when an
+endpoint is new. `concat` on genuinely new endpoints is far *below* chance.
 
 ### Why the ceiling is there
 
