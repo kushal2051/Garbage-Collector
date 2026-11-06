@@ -111,6 +111,33 @@ To triage candidates, sort `gc_candidates_<slug>.tsv` by `type_rule_violation`
 first and `score` second: those rows are wrong by the type rule regardless of
 what the model thinks.
 
+## Inputs
+
+None of these live in the repo — they are hundreds of megabytes to two
+gigabytes each. Point `config.py` at them with `ROTATE_EMB`, `ROTATE_GRAPH` and
+`ROTATE_DEG_SRC`; the defaults are the Longleaf paths the committed run used.
+
+**`ROTATE_EMB` — the RotatE embeddings** (1.9 GB). A RotatE model over the
+ROBOKOP subgraph: 931,502 entities, 116 relations, `embedding_dim` 512, so 256
+complex dimensions, trained with `gamma=12.0`. The export is epoch 50 of an
+Azure ML run, at `val_auc` 0.834 / `val_mrr` 0.053. `node_embeddings.npy` is
+laid out `[re | im]`; `relation_rotations.npy` is `[cos(phase) | sin(phase)]`,
+which is what `rotate.py` consumes. The directory carries a `manifest.json` with
+the source checkpoint, its SHA-256, and a SHA-256 per exported file — check
+those before trusting a copy.
+
+**`ROTATE_GRAPH` — `robokop_30fd_filtered`** (7.6 GB). `subgraph_edges.jsonl`,
+read once by stage 1, plus `training_node_types.tsv`, which supplies the node
+types the type rule is evaluated against.
+
+**`ROTATE_DEG_SRC` — a flat TSV of the whole graph** (1.1 GB,
+`subject/predicate/object`). Generated from the same subgraph as above, minus
+1,262 documented dangling self-loops. Stage 2 reads it only to count global node
+degree, which is needed twice downstream: as context on every flagged edge, so a
+flag can be read as "rare node" rather than "wrong edge", and as the degree-only
+control in stage 4. A JSONL pass would give the same counts; the TSV is used
+because it is a tenth the size.
+
 ## Pipeline
 
 ```bash
@@ -212,3 +239,11 @@ one `sbatch slurm/detect.sbatch` regenerates it alongside the rest.
 
 The stage-4 numbers are unaffected — per-model scores are computed
 independently, so dropping a model does not change the others.
+
+Every random draw is explicitly seeded — `default_rng(1000 + seed)` for the
+splits, `default_rng(0)` for the node sample in the figure — and `OneClassSVM`
+with an rbf kernel is deterministic, so the same inputs under the pinned
+dependencies give the same numbers. Two things are expected to vary and do not
+matter: `degrees.tsv` row order, because it is written from a Python set whose
+iteration order depends on hash seeding and is consumed as a lookup; and the
+exact bytes of the PNG, which depend on the matplotlib build.
