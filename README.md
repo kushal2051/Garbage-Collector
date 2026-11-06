@@ -63,6 +63,31 @@ score — is the usable garbage-collection output.
 `results/replication_rbf/check_flagged.cypher` confirms them against upstream
 ROBOKOP rather than the filtered subgraph.
 
+Measured on the committed stage-3 run (`results/summary_treats.tsv`), at
+`nu=0.05`:
+
+| | count | share of 9,657 |
+|---|---|---|
+| flagged by the SVM | 482 | 5.0% |
+| violating the type rule | 350 | 3.6% |
+| **both — deletable without the model** | **98** | **1.0%** |
+
+The type-violation rate is **20.3% among flagged edges against 2.8% among
+unflagged**, a 7.4x enrichment, so the detector is not noise. But it found only
+98 of the 350 violations and missed 252, and the type rule alone finds all 350
+at no cost — which is the case for running the rule and treating the SVM as a
+secondary filter, not the reverse.
+
+Two caveats on the 482. `score` correlates **0.875** (Spearman) with
+`min_degree`, and median degree is 3 among flagged edges against 77 among
+unflagged, so much of the flagging is node rarity rather than wrongness; sort by
+`type_rule_violation` before `score`. And the rule as implemented checks the
+**object side only**. Adding the subject rule (the treating entity must be a
+chemical: 61 further violations, mostly `BiologicalProcess` and `Pathway`) and a
+self-loop check (1, a compound recorded as treating itself) raises the
+model-independent total to **411 distinct edges**, 4.3% of the predicate. That
+extension is not yet in `config.py`.
+
 ## Outputs
 
 Every deliverable is a TSV or CSV. The figures that the plotting scripts produce
