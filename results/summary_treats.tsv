@@ -1,0 +1,2 @@
+predicate	nu	features	dim	edges	flagged	flag_rate	spearman_score_vs_min_degree	median_degree_flagged	median_degree_unflagged	spearman_score_vs_rotate_dist	type_rule_violation_rate_flagged	type_rule_violation_rate_unflagged
+biolink:treats	0.05	concat	1024	9657	482	0.0499	0.875	3.0	77.0	-0.209	0.2033	0.0275

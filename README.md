@@ -170,11 +170,20 @@ positive split. The two agree within 0.01 on all four models —
 
 ## Reproducing
 
-`results/` holds the stage-4 evaluation, the replication's grid search, flagged
-list and Cypher checks. **Stage 3's own outputs are not committed**: the
-ones on disk were produced before `residual` was removed, so `ranked_*.tsv` was
-sorted by a score the pipeline no longer computes. One `sbatch
-slurm/detect.sbatch` regenerates them, now including the `type_rule_violation`
-column and `gc_candidates_treats.tsv`. The stage-4 numbers are unaffected —
-per-model scores are computed independently, so dropping a model does not change
-the others.
+`results/` holds the stage-3 detector run, the stage-4 evaluation, the
+replication's grid search, flagged list and Cypher checks.
+
+Stage 3 was regenerated on 2026-11-06 under the current code (Slurm 8401579 /
+8401581 / 8401583), so `gc_candidates_treats.tsv`, `top50_treats.tsv` and
+`summary_treats.tsv` now carry the `type_rule_violation` column and are sorted by
+the score the pipeline actually computes. The earlier outputs predated the
+removal of `residual` and were sorted by a score no longer produced; they are
+gone. Stages 1–2 reproduced their inputs exactly — `edges.tsv` is byte-identical
+to the earlier run and `degrees.tsv` matches on content, differing only in row
+order, which is immaterial because it is consumed as a lookup.
+
+`ranked_treats.tsv` (all 9,657 edges, 1.5 MB) stays uncommitted by `.gitignore`;
+one `sbatch slurm/detect.sbatch` regenerates it alongside the rest.
+
+The stage-4 numbers are unaffected — per-model scores are computed
+independently, so dropping a model does not change the others.
