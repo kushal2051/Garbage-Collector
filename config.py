@@ -9,6 +9,11 @@ them with an environment variable, so the repo runs elsewhere without edits:
                    training_node_types.tsv
     ROTATE_DEG_SRC edges.tsv (subject/predicate/object) for the global degree count
     ROTATE_OUT     where stage outputs are written (default: <repo>/out)
+
+The link-prediction stages (kg_prepare, pharos_split, gnn) read two more:
+
+    ROTATE_KG      the KGB-CIA merged graph: a directory holding nodes.jsonl and edges.jsonl
+    ROTATE_PHAROS  pharos_edges.jsonl, the baseline graph the split is shared with
 """
 
 import os
@@ -32,14 +37,31 @@ DEG_SRC = Path(
     )
 )
 
+KG = Path(os.environ.get("ROTATE_KG", "/work/users/k/k/kkoirala/nvidia-hackathon/merged"))
+
+PHAROS = Path(
+    os.environ.get(
+        "ROTATE_PHAROS",
+        "/work/users/k/k/kkoirala/UNC8-dtd-project/UNC8/targets/data/01_raw/pharos_edges.jsonl",
+    )
+)
+
 OUT = Path(os.environ.get("ROTATE_OUT", HERE / "out"))
 
 EDGES_JSONL = GRAPH / "subgraph_edges.jsonl"
 NODE_TYPES = GRAPH / "training_node_types.tsv"
 
+# the merged graph, as written by KGB-CIA's generate-graph agent
+KG_NODES = KG / "nodes.jsonl"
+KG_EDGES = KG / "edges.jsonl"
+
 # derived stage-1/2 products, referenced by every later stage
 EDGES_TSV = OUT / "edges.tsv"
 DEGREES_TSV = OUT / "degrees.tsv"
+
+# kg_prepare's product: the merged graph as compact arrays, read by pharos_split and gnn.
+# The jsonl pair is 6.5 GB and takes minutes to parse; every later stage reads this instead.
+KG_NPZ = OUT / "kg.npz"
 
 # a treats edge is well-formed only if the object is one of these
 VALID_TREATS_OBJECT_TYPES = ("biolink:Disease", "biolink:PhenotypicFeature")
@@ -52,7 +74,8 @@ def require(*paths):
         listed = "\n  ".join(str(m) for m in missing)
         raise SystemExit(
             f"missing input(s):\n  {listed}\n\nSet ROTATE_EMB / ROTATE_GRAPH / "
-            "ROTATE_DEG_SRC, or run the earlier stage that produces them."
+            "ROTATE_DEG_SRC / ROTATE_KG / ROTATE_PHAROS, or run the earlier stage that "
+            "produces them."
         )
 
 

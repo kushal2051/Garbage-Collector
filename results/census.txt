@@ -1,0 +1,15 @@
+kept	270655
+
+# predicate census among prefilter-matching lines
+biolink:has_adverse_event	201588
+biolink:treats_or_applied_or_studied_to_treat	33351
+biolink:contraindicated_in	25633
+biolink:treats	9657
+biolink:applied_to_treat	1867
+biolink:ameliorates_condition	390
+biolink:regulates	322
+biolink:affects	116
+biolink:preventative_for_condition	36
+biolink:related_to	15
+
+# qualified rows among WANTED predicates (expected: none)

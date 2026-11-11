@@ -5,12 +5,16 @@ description = "Garbage-collecting a knowledge graph with a one-class SVM over Ro
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
+# Pinned to the versions that produced everything in results/. scikit-learn in
+# particular does not promise bit-identical SVM output across minor releases, so
+# an unpinned install reproduces the conclusions but not the committed numbers.
+# Widen these deliberately, not by accident.
 dependencies = [
-    "numpy",
-    "pandas",
-    "scipy",
-    "scikit-learn",
-    "matplotlib",
+    "numpy==1.26.4",
+    "pandas==2.3.3",
+    "scipy==1.16.3",
+    "scikit-learn==1.7.2",
+    "matplotlib==3.10.8",
 ]
 
 [dependency-groups]

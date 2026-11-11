@@ -36,8 +36,8 @@ Chance is 0.500. So:
 
 Splitting held-out positives by whether the SVM had seen both endpoints during
 fitting (`results/evaluation_seen_unseen.tsv`) shows most of what skill exists is
-memorisation: `concat` 0.520 → 0.225 and `distance` 0.881 → 0.685 when an
-endpoint is new.
+memorisation: `concat` 0.528 → 0.219 and `distance` 0.886 → 0.671 when an
+endpoint is new. `concat` on genuinely new endpoints is far *below* chance.
 
 ### Why the ceiling is there
 
@@ -63,6 +63,31 @@ score — is the usable garbage-collection output.
 `results/replication_rbf/check_flagged.cypher` confirms them against upstream
 ROBOKOP rather than the filtered subgraph.
 
+Measured on the committed stage-3 run (`results/summary_treats.tsv`), at
+`nu=0.05`:
+
+| | count | share of 9,657 |
+|---|---|---|
+| flagged by the SVM | 482 | 5.0% |
+| violating the type rule | 350 | 3.6% |
+| **both — deletable without the model** | **98** | **1.0%** |
+
+The type-violation rate is **20.3% among flagged edges against 2.8% among
+unflagged**, a 7.4x enrichment, so the detector is not noise. But it found only
+98 of the 350 violations and missed 252, and the type rule alone finds all 350
+at no cost — which is the case for running the rule and treating the SVM as a
+secondary filter, not the reverse.
+
+Two caveats on the 482. `score` correlates **0.875** (Spearman) with
+`min_degree`, and median degree is 3 among flagged edges against 77 among
+unflagged, so much of the flagging is node rarity rather than wrongness; sort by
+`type_rule_violation` before `score`. And the rule as implemented checks the
+**object side only**. Adding the subject rule (the treating entity must be a
+chemical: 61 further violations, mostly `BiologicalProcess` and `Pathway`) and a
+self-loop check (1, a compound recorded as treating itself) raises the
+model-independent total to **411 distinct edges**, 4.3% of the predicate. That
+extension is not yet in `config.py`.
+
 ## Outputs
 
 Every deliverable is a TSV or CSV. The figures that the plotting scripts produce
@@ -85,6 +110,33 @@ are diagnostics, not products.
 To triage candidates, sort `gc_candidates_<slug>.tsv` by `type_rule_violation`
 first and `score` second: those rows are wrong by the type rule regardless of
 what the model thinks.
+
+## Inputs
+
+None of these live in the repo — they are hundreds of megabytes to two
+gigabytes each. Point `config.py` at them with `ROTATE_EMB`, `ROTATE_GRAPH` and
+`ROTATE_DEG_SRC`; the defaults are the Longleaf paths the committed run used.
+
+**`ROTATE_EMB` — the RotatE embeddings** (1.9 GB). A RotatE model over the
+ROBOKOP subgraph: 931,502 entities, 116 relations, `embedding_dim` 512, so 256
+complex dimensions, trained with `gamma=12.0`. The export is epoch 50 of an
+Azure ML run, at `val_auc` 0.834 / `val_mrr` 0.053. `node_embeddings.npy` is
+laid out `[re | im]`; `relation_rotations.npy` is `[cos(phase) | sin(phase)]`,
+which is what `rotate.py` consumes. The directory carries a `manifest.json` with
+the source checkpoint, its SHA-256, and a SHA-256 per exported file — check
+those before trusting a copy.
+
+**`ROTATE_GRAPH` — `robokop_30fd_filtered`** (7.6 GB). `subgraph_edges.jsonl`,
+read once by stage 1, plus `training_node_types.tsv`, which supplies the node
+types the type rule is evaluated against.
+
+**`ROTATE_DEG_SRC` — a flat TSV of the whole graph** (1.1 GB,
+`subject/predicate/object`). Generated from the same subgraph as above, minus
+1,262 documented dangling self-loops. Stage 2 reads it only to count global node
+degree, which is needed twice downstream: as context on every flagged edge, so a
+flag can be read as "rare node" rather than "wrong edge", and as the degree-only
+control in stage 4. A JSONL pass would give the same counts; the TSV is used
+because it is a tenth the size.
 
 ## Pipeline
 
@@ -170,11 +222,28 @@ positive split. The two agree within 0.01 on all four models —
 
 ## Reproducing
 
-`results/` holds the stage-4 evaluation, the replication's grid search, flagged
-list and Cypher checks. **Stage 3's own outputs are not committed**: the
-ones on disk were produced before `residual` was removed, so `ranked_*.tsv` was
-sorted by a score the pipeline no longer computes. One `sbatch
-slurm/detect.sbatch` regenerates them, now including the `type_rule_violation`
-column and `gc_candidates_treats.tsv`. The stage-4 numbers are unaffected —
-per-model scores are computed independently, so dropping a model does not change
-the others.
+`results/` holds the stage-3 detector run, the stage-4 evaluation, the
+replication's grid search, flagged list and Cypher checks.
+
+Stage 3 was regenerated on 2026-11-06 under the current code (Slurm 8401579 /
+8401581 / 8401583), so `gc_candidates_treats.tsv`, `top50_treats.tsv` and
+`summary_treats.tsv` now carry the `type_rule_violation` column and are sorted by
+the score the pipeline actually computes. The earlier outputs predated the
+removal of `residual` and were sorted by a score no longer produced; they are
+gone. Stages 1–2 reproduced their inputs exactly — `edges.tsv` is byte-identical
+to the earlier run and `degrees.tsv` matches on content, differing only in row
+order, which is immaterial because it is consumed as a lookup.
+
+`ranked_treats.tsv` (all 9,657 edges, 1.5 MB) stays uncommitted by `.gitignore`;
+one `sbatch slurm/detect.sbatch` regenerates it alongside the rest.
+
+The stage-4 numbers are unaffected — per-model scores are computed
+independently, so dropping a model does not change the others.
+
+Every random draw is explicitly seeded — `default_rng(1000 + seed)` for the
+splits, `default_rng(0)` for the node sample in the figure — and `OneClassSVM`
+with an rbf kernel is deterministic, so the same inputs under the pinned
+dependencies give the same numbers. Two things are expected to vary and do not
+matter: `degrees.tsv` row order, because it is written from a Python set whose
+iteration order depends on hash seeding and is consumed as a lookup; and the
+exact bytes of the PNG, which depend on the matplotlib build.
