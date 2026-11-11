@@ -8,6 +8,14 @@ __MACOSX/
 out/edges.tsv
 out/degrees.tsv
 
+# ---- stage 5 products: regenerable from kg_prepare / pharos_split / gnn -----
+# the prepared graphs are *.npz above; these are their sidecars and the split's pair list
+out/*.meta.json
+out/kg_census.tsv
+out/pharos_census.tsv
+out/split_*_pairs.tsv
+out/*_per_seed.tsv
+
 # ---- stage 3/4b bulk outputs -----------------------------------------------
 out/ranked_*.tsv
 out/original_*/OneClassSVM_Results_*.csv

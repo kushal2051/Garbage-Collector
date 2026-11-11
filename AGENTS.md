@@ -50,6 +50,17 @@ outside the repo.
 - **Stages are top-level scripts, run in order via `slurm/`:** extract → degrees → detect →
   evaluate, plus `replicate_original.py` as stage 4b. Each reads only what an earlier stage
   wrote, so any stage can be re-run alone.
+- **Stage 5 is link prediction, a separate line from stages 1-4:** `kg_prepare` → `pharos_split`
+  → `gnn`. It answers a different question — how well a graph predicts its own held-out edges,
+  against the Pharos baseline — and shares only `config.py` with the detector. It reads the
+  KGB-CIA merged graph, not the ROBOKOP subgraph, via `ROTATE_KG` and `ROTATE_PHAROS`.
+- **`kgraph.py` holds the merged graph's layout and the split protocol**, and `sage.py` the
+  model and the neighbour sampler, for the reason `rotate.py` exists: written once, so three
+  stages cannot drift on what a node id means. Both are numpy/torch only and are tested against
+  hand-built stand-ins.
+- **Both graphs are prepared against one node table** (the merged graph's `nodes.jsonl`). An
+  identical train/test split needs one node id space, and it is also where Pharos's categories
+  come from, since `pharos_edges.jsonl` ships no nodes.
 - **Unlike KGB-CIA there is no `cli.py` / `main(argv) -> int` contract.** There is no pipeline
   runner to satisfy — stages are submitted individually through `sbatch` — so adopting that
   contract would be ceremony without a caller. This is a deliberate deviation.
