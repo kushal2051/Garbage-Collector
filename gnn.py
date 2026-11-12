@@ -1,6 +1,24 @@
 """Stage 5c. GraphSAGE link prediction on a prepared graph, with the baseline and the spread.
 
-Two ways to run it:
+Two objectives, and the choice matters more than any hyperparameter here:
+
+    --objective supervised      encoder and decoder trained end to end on the target
+                                predicate's edges alone. With the shared split that is 12,367
+                                edges, so at --batch 4096 it is FOUR optimiser steps an epoch;
+                                the first runs stopped after ~35 steps total, with a 1.2M x 64
+                                embedding table still at its random initialisation.
+    --objective unsupervised    the encoder is trained first on ALL of this graph's own edges
+                                (link reconstruction, every predicate), then FROZEN, and only a
+                                small decoder is fitted on the overlapping pairs. The encoder
+                                sees 11.4M edges instead of 12k.
+
+Neither is assumed to win. On a synthetic control where the signal is reachable from both,
+they tie (0.948 unsupervised, 0.953 supervised at a matched step budget) while a degree-only
+baseline stays at 0.528 -- so the control proves the plumbing, not the ranking. Which one wins
+on a real graph is a measurement, and the budget has to be matched before the comparison means
+anything.
+
+Two ways to split it:
 
     --split out/split_<tag>_pairs.tsv    the shared split, for the Pharos comparison. Both
                                          graphs are scored on identical test rows and identical
@@ -68,6 +86,24 @@ ap.add_argument("--val-frac", type=float, default=0.1)
 ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
 ap.add_argument("--tag", default="gnn", help="output prefix")
 ap.add_argument("--no-write", action="store_true")
+ap.add_argument(
+    "--objective",
+    choices=("supervised", "unsupervised"),
+    default="supervised",
+    help="supervised: encoder and decoder trained end to end on the target predicate alone. "
+    "With a shared split that is ~12k edges and 4 optimiser steps an epoch, so the encoder "
+    "barely moves off its initialisation. unsupervised: the encoder is trained first on ALL "
+    "of this graph's own edges (link reconstruction), then FROZEN, and only a small decoder "
+    "is fitted on the overlapping pairs.",
+)
+ap.add_argument("--encoder-steps", type=int, default=2000, help="unsupervised: optimiser steps")
+ap.add_argument("--encoder-batch", type=int, default=4096, help="unsupervised: edges per step")
+ap.add_argument("--encoder-eval-every", type=int, default=200)
+ap.add_argument("--encoder-patience", type=int, default=5, help="evaluations without a gain")
+ap.add_argument("--decoder", choices=("distmult", "mlp"), default="distmult")
+ap.add_argument("--decoder-epochs", type=int, default=200)
+ap.add_argument("--decoder-lr", type=float, default=0.01)
+ap.add_argument("--decoder-patience", type=int, default=20)
 args = ap.parse_args()
 
 FANOUTS = tuple(int(x) for x in args.fanouts.split(","))
@@ -207,6 +243,167 @@ def positives_and_training_edges(seed: int):
     return parts, graph.edges[~drop]
 
 
+# ------------------------------------------------------------- unsupervised encoder, frozen
+
+
+def encoder_training_edges(parts: dict) -> np.ndarray:
+    """Every edge of this graph EXCEPT the held-out pairs, under any predicate, either way.
+
+    Stricter than the supervised path's removal, which drops a held-out pair only when it
+    carries the target predicate. Here the encoder trains on the edges themselves, so leaving
+    a test pair in under some other predicate -- or reversed -- trains the encoder on the very
+    pair the decoder is later scored on. That leak reads as a high AUC, not as an error.
+    """
+    held_out = np.concatenate([parts["val"], parts["test"]])
+    remove = np.concatenate(
+        [pair_key(held_out[:, 0], held_out[:, 2]), pair_key(held_out[:, 2], held_out[:, 0])]
+    )
+    keys = pair_key(graph.edges[:, 0], graph.edges[:, 2])
+    return graph.edges[~np.isin(keys, remove)]
+
+
+def corrupt(triples: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """One negative per edge: replace the subject or the object with any node."""
+    out = triples.copy()
+    flip = rng.random(len(out)) < 0.5
+    replacement = rng.integers(0, graph.num_nodes, size=len(out))
+    out[flip, 0] = replacement[flip]
+    out[~flip, 2] = replacement[~flip]
+    return out
+
+
+def _forward(model, x, indptr, indices, triples, rng, fanouts):
+    seeds = np.unique(np.concatenate([triples[:, 0], triples[:, 2]]))
+    nodes, edge_index, _ = sage.sample_subgraph(indptr, indices, seeds, fanouts, rng)
+    h = model.encode(
+        torch.as_tensor(x[nodes]).to(DEVICE),
+        edge_index.to(DEVICE),
+        torch.as_tensor(nodes).long().to(DEVICE),
+    )
+    local = np.column_stack(
+        [
+            np.searchsorted(nodes, triples[:, 0]),
+            triples[:, 1],
+            np.searchsorted(nodes, triples[:, 2]),
+        ]
+    )
+    return model.score(h, torch.as_tensor(local).long().to(DEVICE))
+
+
+def train_encoder(encoder_edges: np.ndarray, seed: int):
+    """Link reconstruction over the whole graph. Returns (model, x, indptr, indices, best)."""
+    rng = np.random.default_rng(7000 + seed)
+    order = rng.permutation(len(encoder_edges))
+    n_val = min(20000, max(1, len(encoder_edges) // 100))
+    val_rows = encoder_edges[order[:n_val]].astype(np.int64)
+    train_rows = encoder_edges[order[n_val:]].astype(np.int64)
+
+    # message passing uses the encoder's edges; its own validation slice is scored, not removed,
+    # because at 1% it cannot carry the representation and removing it would cost a CSR rebuild
+    x = kgraph.features(graph.category, graph.category_sets, encoder_edges, graph.num_nodes)
+    indptr, indices = kgraph.csr(encoder_edges, graph.num_nodes)
+
+    torch.manual_seed(2000 + seed)
+    model = sage.LinkPredictor(
+        in_dim=x.shape[1],
+        num_predicates=graph.num_predicates,
+        hidden=args.hidden,
+        layers=args.layers,
+        dropout=args.dropout,
+        num_nodes=graph.num_nodes,
+        embed_dim=args.embed_dim,
+    ).to(DEVICE)
+    optimiser = torch.optim.Adam(model.parameters(), lr=args.lr)
+    loss_fn = torch.nn.BCEWithLogitsLoss()
+    val_neg = corrupt(val_rows, np.random.default_rng(7777 + seed))
+
+    best, best_state, since_best, running = -1.0, None, 0, []
+    for step in range(1, args.encoder_steps + 1):
+        model.train()
+        rows = train_rows[rng.integers(0, len(train_rows), size=args.encoder_batch)]
+        triples = np.concatenate([rows, corrupt(rows, rng)])
+        labels = torch.cat(
+            [torch.ones(len(rows)), torch.zeros(len(rows))]
+        ).to(DEVICE)
+        optimiser.zero_grad()
+        loss = loss_fn(_forward(model, x, indptr, indices, triples, rng, FANOUTS), labels)
+        loss.backward()
+        optimiser.step()
+        running.append(float(loss.detach()))
+
+        if step % args.encoder_eval_every == 0:
+            model.eval()
+            with torch.no_grad():
+                pos = _forward(model, x, indptr, indices, val_rows, rng, EVAL_FANOUTS)
+                neg = _forward(model, x, indptr, indices, val_neg, rng, EVAL_FANOUTS)
+            roc = roc_auc_score(
+                np.r_[np.ones(len(val_rows)), np.zeros(len(val_neg))],
+                np.r_[pos.cpu().numpy(), neg.cpu().numpy()],
+            )
+            print(
+                f"    encoder step {step:5d}  loss {np.mean(running):.4f}  "
+                f"reconstruction roc {roc:.3f}",
+                flush=True,
+            )
+            running = []
+            if roc > best:
+                best, since_best = roc, 0
+                best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            else:
+                since_best += 1
+                if since_best >= args.encoder_patience:
+                    print("    encoder early stop", flush=True)
+                    break
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    return model, x, indptr, indices, best
+
+
+def embed(model, x, indptr, indices, wanted: np.ndarray, rng, batch=4096) -> torch.Tensor:
+    """Frozen per-node representations for `wanted`, as a (len(wanted), hidden) tensor."""
+    model.eval()
+    out = torch.empty((len(wanted), args.hidden), dtype=torch.float32, device=DEVICE)
+    with torch.no_grad():
+        for start in range(0, len(wanted), batch):
+            chunk = wanted[start : start + batch]
+            nodes, edge_index, _ = sage.sample_subgraph(indptr, indices, chunk, EVAL_FANOUTS, rng)
+            h = model.encode(
+                torch.as_tensor(x[nodes]).to(DEVICE),
+                edge_index.to(DEVICE),
+                torch.as_tensor(nodes).long().to(DEVICE),
+            )
+            out[start : start + len(chunk)] = h[np.searchsorted(nodes, chunk)]
+    return out
+
+
+class Decoder(torch.nn.Module):
+    """What is fitted on the overlapping pairs, over frozen node representations.
+
+    distmult   one learned relation vector; the same scoring family the encoder trained with,
+               so the unsupervised and supervised rows stay comparable.
+    mlp        a hidden layer over [h_s, h_o, h_s * h_o], for when the relation is not a
+               diagonal bilinear form.
+    """
+
+    def __init__(self, dim: int, kind: str, hidden: int = 64, dropout: float = 0.2) -> None:
+        super().__init__()
+        self.kind = kind
+        if kind == "distmult":
+            self.relation = torch.nn.Parameter(torch.randn(dim) * 0.1)
+        else:
+            self.net = torch.nn.Sequential(
+                torch.nn.Linear(3 * dim, hidden),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(dropout),
+                torch.nn.Linear(hidden, 1),
+            )
+
+    def forward(self, hs: torch.Tensor, ho: torch.Tensor) -> torch.Tensor:
+        if self.kind == "distmult":
+            return (hs * self.relation * ho).sum(-1)
+        return self.net(torch.cat([hs, ho, hs * ho], dim=1)).squeeze(-1)
+
+
 # ------------------------------------------------------------------ one seed
 
 
@@ -237,7 +434,7 @@ def score_in_batches(model, x, indptr, indices, triples, rng, batch=8192) -> np.
     return out
 
 
-def run_seed(seed: int):
+def run_seed_supervised(seed: int):
     parts, train_edges = positives_and_training_edges(seed)
     train_pos, val_pos, test_pos = parts["train"], parts["val"], parts["test"]
     if len(test_pos) < MIN_SUBSET:
@@ -324,6 +521,113 @@ def run_seed(seed: int):
         "degree_neg": kgraph.degree_scores(test_neg, train_edges, graph.num_nodes),
     }
     return scores, kgraph.both_seen(test_pos, train_edges), best_roc
+
+
+def run_seed_unsupervised(seed: int):
+    """Encoder on this graph's own edges, frozen; decoder on the overlapping pairs."""
+    parts, _ = positives_and_training_edges(seed)
+    train_pos, val_pos, test_pos = parts["train"], parts["val"], parts["test"]
+    if len(test_pos) < MIN_SUBSET:
+        raise SystemExit(f"seed {seed}: only {len(test_pos)} test positives")
+
+    encoder_edges = encoder_training_edges(parts)
+    print(
+        f"  encoder trains on {len(encoder_edges):,} of {graph.num_edges:,} edges "
+        f"({graph.num_edges - len(encoder_edges):,} held out as the decoder's val/test pairs)",
+        flush=True,
+    )
+    model, x, indptr, indices, encoder_roc = train_encoder(encoder_edges, seed)
+
+    train_neg = negatives_for(train_pos, seed * 7 + 3)
+    val_neg = negatives_for(val_pos, seed * 7 + 1)
+    test_neg = negatives_for(test_pos, seed * 7 + 2)
+
+    # every node the decoder will ever ask about, embedded once from the frozen encoder
+    wanted = np.unique(
+        np.concatenate(
+            [subject_pool, object_pool]
+            + [t[:, c] for t in (train_pos, val_pos, test_pos) for c in (0, 2)]
+            + [t[:, c] for t in (train_neg, val_neg, test_neg) for c in (0, 2)]
+        )
+    ).astype(np.int64)
+    rng = np.random.default_rng(5000 + seed)
+    H = embed(model, x, indptr, indices, wanted, rng)
+    print(f"  froze {len(wanted):,} node representations ({args.hidden}d)", flush=True)
+
+    def rows_of(triples: np.ndarray):
+        return (
+            torch.as_tensor(np.searchsorted(wanted, triples[:, 0])).long().to(DEVICE),
+            torch.as_tensor(np.searchsorted(wanted, triples[:, 2])).long().to(DEVICE),
+        )
+
+    sets = {
+        name: rows_of(t)
+        for name, t in (
+            ("train_pos", train_pos),
+            ("train_neg", train_neg),
+            ("val_pos", val_pos),
+            ("val_neg", val_neg),
+            ("test_pos", test_pos),
+            ("test_neg", test_neg),
+        )
+    }
+
+    decoder = Decoder(args.hidden, args.decoder).to(DEVICE)
+    optimiser = torch.optim.Adam(decoder.parameters(), lr=args.decoder_lr)
+    loss_fn = torch.nn.BCEWithLogitsLoss()
+    labels = torch.cat([torch.ones(len(train_pos)), torch.zeros(len(train_neg))]).to(DEVICE)
+    val_labels = np.r_[np.ones(len(val_pos)), np.zeros(len(val_neg))]
+
+    def logits(name: str) -> torch.Tensor:
+        s, o = sets[name]
+        return decoder(H[s], H[o])
+
+    best, best_state, since_best = -1.0, None, 0
+    for epoch in range(args.decoder_epochs):
+        decoder.train()
+        optimiser.zero_grad()
+        loss = loss_fn(torch.cat([logits("train_pos"), logits("train_neg")]), labels)
+        loss.backward()
+        optimiser.step()
+
+        decoder.eval()
+        with torch.no_grad():
+            scored = torch.cat([logits("val_pos"), logits("val_neg")]).cpu().numpy()
+        roc = roc_auc_score(val_labels, scored)
+        if epoch % 25 == 0:
+            print(
+                f"    decoder epoch {epoch:4d}  loss {float(loss.detach()):.4f}  "
+                f"val roc {roc:.3f}",
+                flush=True,
+            )
+        if roc > best:
+            best, since_best = roc, 0
+            best_state = {k: v.detach().clone() for k, v in decoder.state_dict().items()}
+        else:
+            since_best += 1
+            if since_best >= args.decoder_patience:
+                break
+    if best_state is not None:
+        decoder.load_state_dict(best_state)
+
+    decoder.eval()
+    with torch.no_grad():
+        gnn_pos = logits("test_pos").cpu().numpy()
+        gnn_neg = logits("test_neg").cpu().numpy()
+    print(f"  encoder reconstruction roc {encoder_roc:.3f}, decoder val roc {best:.3f}", flush=True)
+    scores = {
+        "gnn_pos": gnn_pos,
+        "gnn_neg": gnn_neg,
+        "degree_pos": kgraph.degree_scores(test_pos, encoder_edges, graph.num_nodes),
+        "degree_neg": kgraph.degree_scores(test_neg, encoder_edges, graph.num_nodes),
+    }
+    return scores, kgraph.both_seen(test_pos, encoder_edges), best
+
+
+def run_seed(seed: int):
+    if args.objective == "unsupervised":
+        return run_seed_unsupervised(seed)
+    return run_seed_supervised(seed)
 
 
 # ------------------------------------------------------------------ every seed

@@ -1,6 +1,8 @@
 """The two things the unsupervised encoder adds, tested without the real graph.
 
-A standalone node table, so a baseline graph keeps the nodes the merged graph lacks.
+A standalone node table (so a baseline graph keeps the nodes the merged graph lacks), and
+the stricter hold-out the encoder needs, since it trains on the edges themselves rather
+than on the target predicate alone.
 """
 
 import json
@@ -53,3 +55,45 @@ def test_node_table_from_edges_still_dedups_and_drops_self_loops(tmp_path):
     edges, _preds, _census, dropped = kgraph.read_edges(path, index)
     assert len(edges) == 1
     assert dropped["duplicate_triple"] == 1 and dropped["self_loop"] == 1
+
+
+def strict_holdout(edges, held_out, num_nodes):
+    """The rule gnn.encoder_training_edges applies, isolated so it can be tested alone."""
+
+    def key(subject, obj):
+        return subject.astype(np.int64) * num_nodes + obj.astype(np.int64)
+
+    remove = np.concatenate(
+        [key(held_out[:, 0], held_out[:, 2]), key(held_out[:, 2], held_out[:, 0])]
+    )
+    return edges[~np.isin(key(edges[:, 0], edges[:, 2]), remove)]
+
+
+def test_strict_holdout_removes_the_pair_under_every_predicate_and_both_ways():
+    """A held-out pair left in under another predicate trains the encoder on the test edge.
+
+    That leak reads as a high AUC rather than as an error, which is why it is tested.
+    """
+    num_nodes = 10
+    edges = np.array(
+        [
+            [1, 0, 2],  # the held-out pair, target predicate
+            [1, 1, 2],  # SAME pair, different predicate -- must also go
+            [2, 1, 1],  # SAME pair reversed -- must also go
+            [1, 0, 3],  # a different pair -- must stay
+            [4, 2, 5],  # unrelated -- must stay
+        ],
+        dtype=np.int32,
+    )
+    held_out = np.array([[1, 0, 2]], dtype=np.int64)
+    kept = strict_holdout(edges, held_out, num_nodes)
+    assert len(kept) == 2
+    assert {(int(s), int(o)) for s, _, o in kept} == {(1, 3), (4, 5)}
+
+
+def test_strict_holdout_is_stricter_than_the_predicate_only_rule():
+    num_nodes = 10
+    edges = np.array([[1, 0, 2], [1, 1, 2], [2, 1, 1]], dtype=np.int32)
+    held_out = np.array([[1, 0, 2]], dtype=np.int64)
+    predicate_only = len(edges) - 1  # what the supervised path would keep
+    assert len(strict_holdout(edges, held_out, num_nodes)) < predicate_only
