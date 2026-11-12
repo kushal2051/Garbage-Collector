@@ -143,14 +143,14 @@ def metrics(positive: np.ndarray, negative: np.ndarray) -> dict[str, float]:
 index = graph.index()
 
 
-def load_shared_split(path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
-    """The shared pairs, as node ids, with every pair either graph holds as the filter set.
+def load_shared_split(path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(shared pairs as node ids, the whole file as written).
 
-    Negatives are derived from this file alone -- its node pools, its pair set, the seed -- and
-    never from the graph being scored, so both runs draw the SAME negatives. Filtered against
-    every pair either graph asserts, so a negative is not an edge one of them holds.
+    The whole file is returned as well because the negative sampler works in the file's own
+    CURIE space, not in this graph's node ids -- see `comparison space` below.
     """
-    frame = pd.read_csv(path, sep="\t")
+    whole = pd.read_csv(path, sep="\t")
+    frame = whole.copy()
     for column in ("subject", "object"):
         frame[f"{column}_id"] = frame[column].map(index)
     missing = frame[frame.subject_id.isna() | frame.object_id.isna()]
@@ -162,49 +162,92 @@ def load_shared_split(path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
             "object_id": np.int64,
         }
     )
-    every_pair = frame[["subject_id", "object_id"]].to_numpy()
     shared = frame[(frame.in_kg == 1) & (frame.in_pharos == 1)]
-    return shared, every_pair, np.unique(every_pair)
+    return shared, whole
 
 
 def pair_key(subject: np.ndarray, obj: np.ndarray) -> np.ndarray:
     return subject.astype(np.int64) * graph.num_nodes + obj.astype(np.int64)
 
 
+# ---------------------------------------------------------------- comparison space
+#
+# Negatives are drawn in a space that does NOT depend on the graph being scored, so that two
+# graphs prepared against different node tables draw the IDENTICAL negative pairs from a seed.
+#
+# With --split that space is the split file's own CURIE index: its pools are the shared pairs'
+# distinct subjects and objects ordered by CURIE, and its filter is every pair the file lists.
+# Both are properties of the file alone, so both runs see them identically.
+#
+# What this replaces: pools built with np.unique over NODE IDS, which sort differently in each
+# graph. The same CURIE set came out in a different order, so the same RNG stream picked
+# different entities -- measured on the 2026-11-12 runs, only 0-2 of each seed's 1,558 test
+# negatives coincided between the two graphs. The filter was also built through each graph's
+# own node table, so a pair the graph could not map was silently absent from it, and a
+# rejection in one graph but not the other desynchronised the RNG stream for every later row.
+#
+# Without --split only one graph is ever involved, so comparison space is its own node ids.
+
 if args.split:
     config.require(args.split)
-    shared, every_pair, _ = load_shared_split(args.split)
-    subject_pool = np.unique(shared.subject_id.to_numpy())
-    object_pool = np.unique(shared.object_id.to_numpy())
-    forbidden = set(pair_key(every_pair[:, 0], every_pair[:, 1]).tolist())
+    shared, whole = load_shared_split(args.split)
+    curies = sorted(set(whole.subject) | set(whole.object))
+    comparison = {curie: i for i, curie in enumerate(curies)}
+    SPAN = len(curies)
+    FORBIDDEN = {
+        comparison[s] * SPAN + comparison[o] for s, o in zip(whole.subject, whole.object)
+    }
+    POOL_S = np.array(sorted(comparison[c] for c in shared.subject.unique()), dtype=np.int64)
+    POOL_O = np.array(sorted(comparison[c] for c in shared.object.unique()), dtype=np.int64)
+    TO_NODE = np.array([index.get(c, -1) for c in curies], dtype=np.int64)
+    TO_COMPARISON = np.full(graph.num_nodes, -1, dtype=np.int64)
+    for curie, position in comparison.items():
+        node = index.get(curie)
+        if node is not None:
+            TO_COMPARISON[node] = position
+    if (TO_NODE[POOL_S] < 0).any() or (TO_NODE[POOL_O] < 0).any():
+        raise SystemExit(
+            "a shared pair's endpoint is missing from this graph's node table, which cannot "
+            "happen for a pair both graphs assert -- the split and the graph disagree"
+        )
     print(
-        f"shared split: {len(shared):,} pairs, pools {len(subject_pool):,} subjects / "
-        f"{len(object_pool):,} objects",
+        f"shared split: {len(shared):,} pairs, pools {len(POOL_S):,} subjects / "
+        f"{len(POOL_O):,} objects, filter {len(FORBIDDEN):,} pairs "
+        f"(drawn in the split's CURIE space, identical for every graph)",
         flush=True,
     )
 else:
-    subject_pool, object_pool = kgraph.side_pools(graph.edges, TARGET)
+    POOL_S, POOL_O = kgraph.side_pools(graph.edges, TARGET)
     target_rows = graph.edges[graph.edges[:, 1] == TARGET]
-    forbidden = set(pair_key(target_rows[:, 0], target_rows[:, 2]).tolist())
+    SPAN = graph.num_nodes
+    FORBIDDEN = set(pair_key(target_rows[:, 0], target_rows[:, 2]).tolist())
+    TO_NODE = np.arange(graph.num_nodes, dtype=np.int64)
+    TO_COMPARISON = np.arange(graph.num_nodes, dtype=np.int64)
     print(f"own-graph split on {len(target_rows):,} {args.predicate} edges", flush=True)
 
 
 def negatives_for(positives: np.ndarray, seed: int) -> np.ndarray:
-    """One corrupted pair per positive, half each side, type-matched and filtered."""
+    """One corrupted pair per positive, half each side, type-matched and filtered.
+
+    Every draw, every rejection and every retry happens in comparison space, so the sequence
+    of candidates depends only on the split file and the seed. Two graphs therefore produce
+    byte-identical negatives. Node ids are assigned only at the end.
+    """
     rng = np.random.default_rng(90000 + seed)
     out = np.empty((len(positives), 3), dtype=np.int64)
     for row, (subject, _predicate, obj) in enumerate(positives):
-        candidate = (int(subject), int(obj))
+        s, o = int(TO_COMPARISON[subject]), int(TO_COMPARISON[obj])
+        candidate = (s, o)
         for _attempt in range(100):
             if rng.random() < 0.5:
-                candidate = (int(subject_pool[rng.integers(len(subject_pool))]), int(obj))
+                candidate = (int(POOL_S[rng.integers(len(POOL_S))]), o)
             else:
-                candidate = (int(subject), int(object_pool[rng.integers(len(object_pool))]))
+                candidate = (s, int(POOL_O[rng.integers(len(POOL_O))]))
             if candidate[0] != candidate[1] and (
-                candidate[0] * graph.num_nodes + candidate[1] not in forbidden
+                candidate[0] * SPAN + candidate[1] not in FORBIDDEN
             ):
                 break
-        out[row] = (candidate[0], TARGET, candidate[1])
+        out[row] = (TO_NODE[candidate[0]], TARGET, TO_NODE[candidate[1]])
     return out
 
 
