@@ -588,7 +588,7 @@ def run_seed_unsupervised(seed: int):
     # every node the decoder will ever ask about, embedded once from the frozen encoder
     wanted = np.unique(
         np.concatenate(
-            [subject_pool, object_pool]
+            [TO_NODE[POOL_S], TO_NODE[POOL_O]]
             + [t[:, c] for t in (train_pos, val_pos, test_pos) for c in (0, 2)]
             + [t[:, c] for t in (train_neg, val_neg, test_neg) for c in (0, 2)]
         )
