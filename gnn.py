@@ -100,6 +100,18 @@ ap.add_argument("--encoder-steps", type=int, default=2000, help="unsupervised: o
 ap.add_argument("--encoder-batch", type=int, default=4096, help="unsupervised: edges per step")
 ap.add_argument("--encoder-eval-every", type=int, default=200)
 ap.add_argument("--encoder-patience", type=int, default=5, help="evaluations without a gain")
+ap.add_argument(
+    "--encoder-negatives",
+    choices=("uniform", "typed"),
+    default="uniform",
+    help="unsupervised: how the encoder's negatives are drawn, for BOTH its loss and its "
+    "validation metric. uniform replaces an endpoint with any node in the graph, which on a "
+    "graph this size is almost never a plausible edge -- reconstruction ROC then saturates "
+    "above 0.99 within a fifth of the step budget. typed replaces it with a node observed in "
+    "that position for that same predicate and rejects draws that are real edges, which is "
+    "the kind of negative the decoder is scored on. Reconstruction ROC under typed is NOT "
+    "comparable to uniform: it is measured against a harder distribution.",
+)
 ap.add_argument("--decoder", choices=("distmult", "mlp"), default="distmult")
 ap.add_argument("--decoder-epochs", type=int, default=200)
 ap.add_argument("--decoder-lr", type=float, default=0.01)
@@ -194,9 +206,7 @@ if args.split:
     curies = sorted(set(whole.subject) | set(whole.object))
     comparison = {curie: i for i, curie in enumerate(curies)}
     SPAN = len(curies)
-    FORBIDDEN = {
-        comparison[s] * SPAN + comparison[o] for s, o in zip(whole.subject, whole.object)
-    }
+    FORBIDDEN = {comparison[s] * SPAN + comparison[o] for s, o in zip(whole.subject, whole.object)}
     POOL_S = np.array(sorted(comparison[c] for c in shared.subject.unique()), dtype=np.int64)
     POOL_O = np.array(sorted(comparison[c] for c in shared.object.unique()), dtype=np.int64)
     TO_NODE = np.array([index.get(c, -1) for c in curies], dtype=np.int64)
@@ -315,6 +325,79 @@ def corrupt(triples: np.ndarray, rng: np.random.Generator) -> np.ndarray:
     return out
 
 
+EMPTY_KEYS = np.zeros(0, dtype=np.int64)
+
+
+def _is_true_edge(keys: np.ndarray, truth: np.ndarray) -> np.ndarray:
+    """Membership against a sorted key array. np.isin would rebuild a hash on every call."""
+    if not len(truth):
+        return np.zeros(len(keys), dtype=bool)
+    position = np.clip(np.searchsorted(truth, keys), 0, len(truth) - 1)
+    return truth[position] == keys
+
+
+class TypedCorruptor:
+    """One negative per edge, drawn the way the decoder's are: the replacement comes from the
+    nodes observed in that position for that same predicate, and a draw that lands on a real
+    edge is redrawn.
+
+    The two edge sets are deliberately different. Pools come from the encoder's OWN edges, so
+    nothing about a held-out pair leaks into them. The truth filter comes from ALL of the
+    graph's edges, which is the whole point of this class: a held-out pair is by construction
+    absent from the encoder's edge set, so without filtering against the full graph it is a
+    legal type-matched draw, and the encoder would be trained to score the decoder's own test
+    positives as negatives. Uniform corruption never had this problem only because a 1.2M-node
+    draw space made it vanishingly unlikely.
+    """
+
+    def __init__(self, pool_edges: np.ndarray, filter_edges: np.ndarray):
+        self.pools: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        self.truth: dict[int, np.ndarray] = {}
+        self.unresolved = 0  # negatives still on a real edge after both redraw budgets
+        for predicate in np.unique(pool_edges[:, 1]):
+            rows = pool_edges[pool_edges[:, 1] == predicate]
+            self.pools[int(predicate)] = (np.unique(rows[:, 0]), np.unique(rows[:, 2]))
+        for predicate in np.unique(filter_edges[:, 1]):
+            rows = filter_edges[filter_edges[:, 1] == predicate]
+            self.truth[int(predicate)] = np.unique(pair_key(rows[:, 0], rows[:, 2]))
+
+    def __call__(
+        self, triples: np.ndarray, rng: np.random.Generator, tries: int = 16
+    ) -> np.ndarray:
+        # tries is 16, not a handful, because rejection is far harder than the overall density
+        # suggests for a hub-heavy predicate. Corrupting the subject against a popular object
+        # redraws a real edge with probability indegree(o)/|pool|, which for an ontology root
+        # under biolink:subclass_of is ~0.4; measured on pharos319, four tries left 3.6% of
+        # that predicate's negatives sitting on real edges, i.e. label noise in the loss.
+        # Anything still colliding after 16 falls back to a uniform node, which collides at the
+        # graph's overall density and is the v1 behaviour for that row.
+        out = triples.copy()
+        subject_side = rng.random(len(out)) < 0.5
+        for predicate in np.unique(out[:, 1]):
+            predicate = int(predicate)
+            pools = self.pools.get(predicate)
+            if pools is None:
+                continue
+            truth = self.truth.get(predicate, EMPTY_KEYS)
+            of_predicate = out[:, 1] == predicate
+            for pool, column, corrupts_subject in ((pools[0], 0, True), (pools[1], 2, False)):
+                if not len(pool):
+                    continue
+                live = np.flatnonzero(of_predicate & (subject_side == corrupts_subject))
+                for _ in range(tries):
+                    if not len(live):
+                        break
+                    out[live, column] = pool[rng.integers(0, len(pool), size=len(live))]
+                    live = live[_is_true_edge(pair_key(out[live, 0], out[live, 2]), truth)]
+                for _ in range(tries):
+                    if not len(live):
+                        break
+                    out[live, column] = rng.integers(0, graph.num_nodes, size=len(live))
+                    live = live[_is_true_edge(pair_key(out[live, 0], out[live, 2]), truth)]
+                self.unresolved += len(live)
+        return out
+
+
 def _forward(model, x, indptr, indices, triples, rng, fanouts):
     seeds = np.unique(np.concatenate([triples[:, 0], triples[:, 2]]))
     nodes, edge_index, _ = sage.sample_subgraph(indptr, indices, seeds, fanouts, rng)
@@ -358,16 +441,17 @@ def train_encoder(encoder_edges: np.ndarray, seed: int):
     ).to(DEVICE)
     optimiser = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fn = torch.nn.BCEWithLogitsLoss()
-    val_neg = corrupt(val_rows, np.random.default_rng(7777 + seed))
+    corrupt_fn = (
+        TypedCorruptor(encoder_edges, graph.edges) if args.encoder_negatives == "typed" else corrupt
+    )
+    val_neg = corrupt_fn(val_rows, np.random.default_rng(7777 + seed))
 
     best, best_state, since_best, running = -1.0, None, 0, []
     for step in range(1, args.encoder_steps + 1):
         model.train()
         rows = train_rows[rng.integers(0, len(train_rows), size=args.encoder_batch)]
-        triples = np.concatenate([rows, corrupt(rows, rng)])
-        labels = torch.cat(
-            [torch.ones(len(rows)), torch.zeros(len(rows))]
-        ).to(DEVICE)
+        triples = np.concatenate([rows, corrupt_fn(rows, rng)])
+        labels = torch.cat([torch.ones(len(rows)), torch.zeros(len(rows))]).to(DEVICE)
         optimiser.zero_grad()
         loss = loss_fn(_forward(model, x, indptr, indices, triples, rng, FANOUTS), labels)
         loss.backward()
@@ -576,7 +660,8 @@ def run_seed_unsupervised(seed: int):
     encoder_edges = encoder_training_edges(parts)
     print(
         f"  encoder trains on {len(encoder_edges):,} of {graph.num_edges:,} edges "
-        f"({graph.num_edges - len(encoder_edges):,} held out as the decoder's val/test pairs)",
+        f"({graph.num_edges - len(encoder_edges):,} held out as the decoder's val/test pairs), "
+        f"{args.encoder_negatives} negatives",
         flush=True,
     )
     model, x, indptr, indices, encoder_roc = train_encoder(encoder_edges, seed)
@@ -639,8 +724,7 @@ def run_seed_unsupervised(seed: int):
         roc = roc_auc_score(val_labels, scored)
         if epoch % 25 == 0:
             print(
-                f"    decoder epoch {epoch:4d}  loss {float(loss.detach()):.4f}  "
-                f"val roc {roc:.3f}",
+                f"    decoder epoch {epoch:4d}  loss {float(loss.detach()):.4f}  val roc {roc:.3f}",
                 flush=True,
             )
         if roc > best:
