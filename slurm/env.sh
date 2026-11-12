@@ -26,6 +26,13 @@ PYTHON_UMAP="${PYTHON_UMAP:-/work/users/k/k/kkoirala/envs/tmaps/bin/python}"
 # numpy-only and run under $PYTHON too; gnn.py needs this one.
 PYTHON_GNN="${PYTHON_GNN:-/work/users/k/k/kkoirala/envs/esmc_sweep/bin/python}"
 
+# Stage 5d (rotate_kge) additionally needs PyKEEN 1.11.1. This env is the one above with
+# --system-site-packages, so PyKEEN sits on the SAME torch build the GNN stage uses rather
+# than pulling its own CUDA wheels:
+#   envs/esmc_sweep/bin/python -m venv --system-site-packages envs/pykeen
+#   envs/pykeen/bin/python -m pip install pykeen==1.11.1
+PYTHON_ROTATE="${PYTHON_ROTATE:-/work/users/k/k/kkoirala/envs/pykeen/bin/python}"
+
 LOGS="${LOGS:-$REPO/logs}"
 mkdir -p "$LOGS"
 
