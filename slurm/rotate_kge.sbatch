@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --gres=gpu:1
-#SBATCH --time=3-00:00:00
+#SBATCH --time=4-00:00:00
 #SBATCH --partition=tropshalab,l40-gpu
 #SBATCH --qos=gpu_access
 #SBATCH --output=logs/rotate_kge.%j.log
@@ -20,6 +20,9 @@
 # Run the SAME command with --graph kg --predicate biolink:gene_associated_with_condition
 # --tag kg_gawc319_rotate for the other side. The two are comparable to each other, and to the
 # stage 5c GraphSAGE runs, only because all of them use the same --split file and seeds.
+#
+# Time: 4 days, which is the cap tropshalab and l40-gpu enforce regardless of what is
+# requested. Ten split seeds means TEN RotatE trainings per graph, so budget against that.
 #
 # Budget: the merged graph is ~1,390 optimiser steps an epoch at --batch 8192 with 128
 # negatives each, plus one filtered ranking of the validation pairs against all 1.2M entities
