@@ -1,0 +1,3 @@
+commit 86bd78e - negatives drawn in the split's CURIE space, identical for both graphs
+8982863 kg          --objective unsupervised --seeds 10 --split out/split_gawc319_pairs.tsv --tag kg_gawc319_unsup
+8982864 pharos319   --objective unsupervised --seeds 10 --split out/split_gawc319_pairs.tsv --tag pharos319_gawc319_unsup

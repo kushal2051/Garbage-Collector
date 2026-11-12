@@ -1,0 +1,2 @@
+8979509 kg_prepare --tag pharos319rk --nodes-from-edges (v319 normalized, ROBOKOP predicate names)
+8979510 pharos_split --pharos-graph pharos319rk --seeds 10 --tag gawc319rk (NO --pharos-predicate needed)
