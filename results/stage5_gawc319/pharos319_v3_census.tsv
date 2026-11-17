@@ -1,0 +1,7 @@
+predicate	edges
+biolink:affects	374091
+biolink:subclass_of	208422
+biolink:gene_associated_with_condition	147894
+biolink:directly_physically_interacts_with	11885
+biolink:target_for	3512
+biolink:related_to	3066

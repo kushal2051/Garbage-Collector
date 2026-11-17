@@ -1,0 +1,46 @@
+{
+  "args": {
+    "graph": "kg",
+    "predicate": "biolink:gene_associated_with_condition",
+    "split": "out/split_gawc319_pairs.tsv",
+    "seeds": 10,
+    "epochs": 50,
+    "warmup": 5,
+    "batch": 8192,
+    "negatives": 128,
+    "dim": 512,
+    "gamma": 12.0,
+    "adversarial_temperature": 1.0,
+    "lr": 0.001,
+    "patience": 5,
+    "relative_delta": 0.002,
+    "eval_frequency": 1,
+    "checkpoint_every": 5,
+    "model_seed": 29,
+    "train_frac": 0.8,
+    "val_frac": 0.1,
+    "device": "cuda",
+    "tag": "kg_gawc319_rotate",
+    "no_write": false
+  },
+  "graph": {
+    "tag": "kg",
+    "num_nodes": 1212415,
+    "num_edges": 11384760,
+    "num_predicates": 31,
+    "dropped": {
+      "self_loop": 2435,
+      "duplicate_triple": 612236
+    }
+  },
+  "prevalence": 0.5,
+  "models": [
+    "rotate",
+    "degree"
+  ],
+  "torch": "2.11.0+cu130",
+  "device": "cuda",
+  "python": "3.13.18",
+  "seconds": 37293.6,
+  "note": "RotatE under the stage-5 protocol: same split file, same held-out pairs, same negatives and same training edges as the GraphSAGE run, so the two ROC numbers are paired row for row. Scored with score_hrt and roc_auc_score, not PyKEEN's rank-based evaluator."
+}

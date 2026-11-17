@@ -1,0 +1,14 @@
+commit f6691df - stage 5d: RotatE (rotate_kge.py) on the stage 5c split, 10 seeds each.
+Same out/split_gawc319_pairs.tsv, same 1558 pos / 1558 neg held-out pairs per seed, so these
+are comparable to each other and to the stage 5c GraphSAGE runs. Defaults: dim 512 (256 complex),
+gamma 12, adversarial temperature 1, 128 negatives, batch 8192, Adam 1e-3, warmup 5 then cosine
+to the 50-epoch cap, patience 5 on validation MRR, relative-delta 0.002. One L40S per job.
+
+9017221 kg            --predicate biolink:gene_associated_with_condition   --tag kg_gawc319_rotate            10.36 h
+9017210 pharos319     --predicate biolink:genetically_associated_with      --tag pharos319_gawc319_rotate      0.47 h
+9037437 pharos319_v3  --predicate biolink:gene_associated_with_condition   --tag pharos319_v3_gawc319_rotate   0.92 h  (out/v3/)
+
+RESULT RotatE loses to the degree baseline on all 30 seeds: kg 0.4230 vs 0.6008, pharos v1
+0.5009 vs 0.6006, pharos v3 0.4873 vs 0.6007. The merged KG is below chance, which is a training
+failure, not a weak signal - the early stopper spends its whole patience budget inside the LR
+warmup. See results/stage5_gawc319/rotate_gawc319_statistics.md. Checkpoints (76 GB) stay on /work.
