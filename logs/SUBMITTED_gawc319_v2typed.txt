@@ -1,0 +1,10 @@
+commit 8af7c06 - v2: --encoder-negatives typed (type-matched negatives inside the encoder,
+for both the loss and the validation metric). Same split as v1, so the test rows, the decoder
+negatives and the v1 numbers (kg 0.617, pharos319 0.805) are directly comparable.
+Submitted --time=8:00:00 (v1 took 1948s/822s; typed adds pool build + redraws).
+
+9006057 kg         --objective unsupervised --encoder-negatives typed --seeds 10 --predicate biolink:gene_associated_with_condition --split out/split_gawc319_pairs.tsv --tag kg_gawc319_unsup_v2
+9006058 pharos319  --objective unsupervised --encoder-negatives typed --seeds 10 --predicate biolink:genetically_associated_with  --split out/split_gawc319_pairs.tsv --tag pharos319_gawc319_unsup_v2
+
+NOTE reconstruction ROC under typed is NOT comparable to v1's 0.997/0.998 - harder negatives.
+Only the decoder ROC on the shared split compares across v1 and v2.
