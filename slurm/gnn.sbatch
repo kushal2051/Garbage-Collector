@@ -5,8 +5,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --gres=gpu:1
-#SBATCH --time=08:00:00
-#SBATCH --partition=l40-gpu
+#SBATCH --time=3-00:00:00
+#SBATCH --partition=tropshalab,l40-gpu
 #SBATCH --qos=gpu_access
 #SBATCH --output=logs/gnn.%j.log
 #SBATCH --error=logs/gnn.%j.log

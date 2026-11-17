@@ -1,0 +1,2 @@
+8973314 kg_prepare --tag pharos319 --nodes-from-edges (v319 normalized, own node table)
+8973315 pharos_split --pharos-graph pharos319 --pharos-predicate genetically_associated_with --seeds 10 --tag gawc319

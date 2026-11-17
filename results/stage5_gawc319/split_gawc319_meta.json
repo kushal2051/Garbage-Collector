@@ -1,0 +1,20 @@
+{
+  "predicate": "biolink:gene_associated_with_condition",
+  "pharos_predicate": "biolink:genetically_associated_with",
+  "kg_graph": "kg",
+  "pharos_graph": "pharos319",
+  "shared_node_table": false,
+  "seeds": 10,
+  "train_frac": 0.8,
+  "val_frac": 0.1,
+  "kg_pairs": 682584,
+  "pharos_pairs": 95484,
+  "shared_pairs": 15574,
+  "kg_only_pairs": 667010,
+  "pharos_only_pairs": 79910,
+  "jaccard": 0.02042507875471807,
+  "n_train": 12459,
+  "n_val": 1557,
+  "n_test": 1558,
+  "note": "the split covers the shared pairs only; both models hold out the same val and test rows and keep their own remaining edges for message passing"
+}

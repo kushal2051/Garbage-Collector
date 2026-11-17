@@ -1,0 +1,51 @@
+{
+  "args": {
+    "graph": "pharos319",
+    "predicate": "biolink:genetically_associated_with",
+    "split": "out/split_gawc319_pairs.tsv",
+    "seeds": 10,
+    "epochs": 30,
+    "patience": 5,
+    "batch": 4096,
+    "hidden": 128,
+    "embed_dim": 64,
+    "layers": 2,
+    "dropout": 0.2,
+    "lr": 0.005,
+    "fanouts": "10,5",
+    "eval_fanouts": "25,10",
+    "train_frac": 0.8,
+    "val_frac": 0.1,
+    "device": "cuda",
+    "tag": "pharos319_gawc319_unsup",
+    "no_write": false,
+    "objective": "unsupervised",
+    "encoder_steps": 2000,
+    "encoder_batch": 4096,
+    "encoder_eval_every": 200,
+    "encoder_patience": 5,
+    "decoder": "distmult",
+    "decoder_epochs": 200,
+    "decoder_lr": 0.01,
+    "decoder_patience": 20
+  },
+  "graph": {
+    "tag": "pharos319",
+    "num_nodes": 307917,
+    "num_edges": 696375,
+    "num_predicates": 6,
+    "dropped": {
+      "duplicate_triple": 0
+    }
+  },
+  "prevalence": 0.5,
+  "models": [
+    "gnn",
+    "degree"
+  ],
+  "torch": "2.11.0+cu130",
+  "device": "cuda",
+  "python": "3.13.18",
+  "seconds": 822.1,
+  "note": "negatives are type-matched and filtered; with --split they are derived from the split file alone, so both graphs draw identical ones. Message passing runs over training edges only."
+}

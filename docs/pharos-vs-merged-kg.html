@@ -1,0 +1,462 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pharos v319 vs Merged KG</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one measured column, full-width band for the headline numbers; wide tables scroll. */
+:root{
+  --bg:#fbfbfa; --surface:#ffffff; --surface-2:#f4f4f1; --rule:#e2e1dc;
+  --ink:#16160f; --ink-2:#55544c; --ink-3:#86857a;
+  --series-1:#2a78d6; --series-2:#eb6834; --baseline:#86857a;
+  --good:#1baf7a; --warn:#eda100; --band:#f0efea;
+  --font-sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141412; --surface:#1c1c19; --surface-2:#232320; --rule:#33332e;
+  --ink:#f2f1ec; --ink-2:#b9b8ae; --ink-3:#8a8980;
+  --series-1:#3987e5; --series-2:#d95926; --baseline:#8a8980;
+  --good:#199e70; --warn:#c98500; --band:#1c1c19;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#141412; --surface:#1c1c19; --surface-2:#232320; --rule:#33332e;
+  --ink:#f2f1ec; --ink-2:#b9b8ae; --ink-3:#8a8980;
+  --series-1:#3987e5; --series-2:#d95926; --baseline:#8a8980;
+  --good:#199e70; --warn:#c98500; --band:#1c1c19;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+h1{font-size:clamp(26px,5vw,38px);line-height:1.12;font-weight:600;letter-spacing:-.02em;text-wrap:balance;margin:0 0 10px}
+h2{font-size:clamp(19px,3vw,23px);font-weight:600;letter-spacing:-.01em;text-wrap:balance;margin:0 0 6px}
+h3{font-size:15px;font-weight:600;margin:18px 0 6px;letter-spacing:-.005em}
+p{margin:0 0 12px;max-width:68ch}
+ul,ol{margin:0 0 12px;padding-left:20px;max-width:68ch}
+li{margin-bottom:7px}
+code,.mono{font-family:var(--font-mono);font-size:.9em;font-variant-ligatures:none}
+code{background:var(--surface-2);padding:1px 5px;border-radius:3px;word-break:break-word}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+header.masthead{padding-block:40px 26px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+.standfirst{font-size:17px;color:var(--ink-2);max-width:64ch;margin:0}
+.meta-strip{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:20px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
+section{padding-block:30px;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:0}
+.sec-head{display:flex;align-items:baseline;gap:11px;margin-bottom:12px}
+.sec-num{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);padding-top:3px;flex:none}
+.headline{background:var(--band);border-block:1px solid var(--rule)}
+.headline .wrap{padding-block:30px}
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.vcard{background:var(--surface);border:1px solid var(--rule);border-radius:7px;padding:16px 17px;min-width:0}
+.vcard.lead{border-left:3px solid var(--series-2)}
+.vcard.second{border-left:3px solid var(--series-1)}
+.vcard.base{border-left:3px solid var(--baseline)}
+.vcard .k{font-family:var(--font-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.vcard .v{font-family:var(--font-mono);font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.vcard .sub{font-size:12.5px;color:var(--ink-2);margin-top:7px;line-height:1.45}
+.tablewrap{overflow-x:auto;margin:0 0 14px;border:1px solid var(--rule);border-radius:7px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:460px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface-2);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hi td{background:color-mix(in srgb,var(--series-2) 7%,transparent)}
+tr.tot td{font-weight:600;background:var(--surface-2)}
+.note{border-left:3px solid var(--warn);background:var(--surface);padding:13px 16px;border-radius:0 7px 7px 0;margin:0 0 14px}
+.note.flag{border-left-color:var(--series-2)}
+.note.ok{border-left-color:var(--good)}
+.note p:last-child{margin-bottom:0}
+.note .lbl{font-family:var(--font-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
+figure{margin:0 0 16px}
+figcaption{font-size:12.5px;color:var(--ink-2);margin-top:9px;max-width:68ch}
+.chartbox{background:var(--surface);border:1px solid var(--rule);border-radius:7px;padding:14px 10px 8px;overflow-x:auto}
+svg{display:block;max-width:100%;height:auto;min-width:420px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0 0;padding-left:6px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.swatch{width:11px;height:11px;border-radius:50%;flex:none}
+.swatch.line{width:15px;height:0;border-top:2px dashed var(--baseline);border-radius:0}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin:0 0 14px}
+.kv div{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:11px 13px;min-width:0}
+.kv .k{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+.kv .v{font-family:var(--font-mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kv .s{font-size:11.5px;color:var(--ink-2);margin-top:3px;line-height:1.4}
+pre{background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;overflow-x:auto;font-family:var(--font-mono);font-size:12px;line-height:1.6;margin:0 0 14px}
+.stepno{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:16px 0 5px}
+footer{padding-block:26px 44px;color:var(--ink-3);font-size:12.5px;font-family:var(--font-mono)}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Link prediction · gene–disease · 2026-11-12</p>
+    <h1>Pharos v319 vs Merged KG</h1>
+    <p class="standfirst">Two GraphSAGE encoders, each trained by unsupervised link reconstruction on its own graph, frozen, then scored through a small decoder on the 15,574 gene–disease pairs the two graphs share. Pharos wins decisively, on identical held-out rows and identical negatives.</p>
+    <div class="meta-strip">
+      <span>jobs 8987649 · 8987650</span>
+      <span>commit 1f6d8cd</span>
+      <span>10 seeds</span>
+      <span>NVIDIA L40S</span>
+      <span>32m / 14m</span>
+    </div>
+  </div>
+</header>
+
+<div class="headline">
+  <div class="wrap">
+    <div class="verdict">
+      <div class="vcard lead">
+        <div class="k">Pharos v319 · ROC AUC</div>
+        <div class="v">0.805</div>
+        <div class="sub">± 0.011 · range 0.783 – 0.822</div>
+      </div>
+      <div class="vcard second">
+        <div class="k">Merged KG · ROC AUC</div>
+        <div class="v">0.617</div>
+        <div class="sub">± 0.007 · range 0.606 – 0.630</div>
+      </div>
+      <div class="vcard base">
+        <div class="k">Degree baseline</div>
+        <div class="v">0.601</div>
+        <div class="sub">both graphs · chance = 0.500</div>
+      </div>
+    </div>
+    <p style="margin-bottom:0;color:var(--ink-2)">Ten independent splits per graph, identical test rows and identical negatives. The worst Pharos split (0.783) beats the best merged-KG split (0.630), so the two distributions do not overlap at any seed. Both degree baselines sit together at 0.601, so the gap is not an artifact of hub degree.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The two graphs</h2></div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>As prepared</th><th class="n">Merged KG</th><th class="n">Pharos v319</th></tr></thead>
+      <tbody>
+        <tr><td>Tag</td><td class="n">kg</td><td class="n">pharos319</td></tr>
+        <tr><td>Nodes</td><td class="n">1,212,415</td><td class="n">307,917</td></tr>
+        <tr><td>Triples (deduplicated, self-loops removed)</td><td class="n">11,384,760</td><td class="n">696,375</td></tr>
+        <tr><td>Predicates</td><td class="n">31</td><td class="n">6</td></tr>
+        <tr><td>Dropped: self-loops</td><td class="n">2,435</td><td class="n">0</td></tr>
+        <tr><td>Dropped: duplicate triples</td><td class="n">612,236</td><td class="n">0</td></tr>
+        <tr><td>Dropped: dangling endpoints</td><td class="n">0</td><td class="n">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Provenance</h3>
+  <p><strong>Merged KG</strong> — the KGB-CIA merged graph, merging code version 2.0.0, built from 22 sources (ChEMBL, ClinVar, GWAS Catalog, Disease Ontology, Human Protein Atlas, Expression Atlas and others). Final counts as merged: 1,212,415 nodes and 11,999,431 edges, which become 11,384,760 distinct non-self-loop triples after the loader deduplicates.</p>
+  <p><strong>Pharos v319</strong> — the Pharos 3.19 SQL dump converted to edges, then normalized through <em>the same SRI services ORION uses</em>: <code>bl-lookup-sri.renci.org</code> for predicates at biolink v4.4.2, and <code>nodenormalization-sri.renci.org</code> for CURIEs with <code>conflate=true</code>. 778,514 edges in, 696,375 out; of 330,663 distinct CURIEs, 329,150 normalized and 1,513 did not. No predicate or CURIE was mapped by hand.</p>
+  <p>Each graph was prepared against <strong>its own node table</strong>. This matters: mapping Pharos through the merged graph's node table instead keeps only 9.1% of its nodes and discards 64.7% of its edges as dangling, almost all of them compounds. Here nothing dangles in either graph.</p>
+
+  <h3>Predicate composition</h3>
+  <p>The two graphs describe different things, which is the leading hypothesis for the result in section 06.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Merged KG · top 5 of 31</th><th class="n">Edges</th><th class="n">Share</th></tr></thead>
+      <tbody>
+        <tr><td><code>biolink:located_in</code></td><td class="n">5,674,079</td><td class="n">47.3%</td></tr>
+        <tr><td><code>biolink:expressed_in</code></td><td class="n">2,522,273</td><td class="n">21.0%</td></tr>
+        <tr><td><code>biolink:genetically_associated_with</code></td><td class="n">771,883</td><td class="n">6.4%</td></tr>
+        <tr class="hi"><td><code>biolink:gene_associated_with_condition</code> — target</td><td class="n">694,304</td><td class="n">5.8%</td></tr>
+        <tr><td><code>biolink:is_sequence_variant_of</code></td><td class="n">424,608</td><td class="n">3.5%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Pharos v319 · all 6</th><th class="n">Edges</th><th class="n">Share</th></tr></thead>
+      <tbody>
+        <tr><td><code>biolink:affects</code> — drug → gene</td><td class="n">374,009</td><td class="n">53.7%</td></tr>
+        <tr><td><code>biolink:subclass_of</code> — disease ontology</td><td class="n">208,422</td><td class="n">29.9%</td></tr>
+        <tr class="hi"><td><code>biolink:genetically_associated_with</code> — target</td><td class="n">95,484</td><td class="n">13.7%</td></tr>
+        <tr><td><code>biolink:directly_physically_interacts_with</code></td><td class="n">11,882</td><td class="n">1.7%</td></tr>
+        <tr><td><code>biolink:target_for</code></td><td class="n">3,512</td><td class="n">0.5%</td></tr>
+        <tr><td><code>biolink:related_to</code></td><td class="n">3,066</td><td class="n">0.4%</td></tr>
+        <tr class="tot"><td>Total</td><td class="n">696,375</td><td class="n">100%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>For predicting gene–disease links, 84% of Pharos's edges lie on the relevant axis — drug–gene plus a dense disease ontology. In the merged graph, 68% of edges are anatomy and expression. Pharos also carries 208,422 <code>subclass_of</code> edges against the merged graph's 17,895.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Why the target predicate has two names</h2></div>
+  <p>The two graphs use the same predicate name for different relations. This is the single most confusing part of the setup, so here it is in full — a census of every edge, not a sample.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Graph · predicate</th><th class="n">Edges</th><th>Subject type</th><th>Object type</th></tr></thead>
+      <tbody>
+        <tr><td>Merged KG · <code>genetically_associated_with</code></td><td class="n">771,883</td><td><strong>DBSNP 100.0%</strong> — variants</td><td>EFO 58.9%, OBA 22.6%, MONDO 16.7%</td></tr>
+        <tr class="hi"><td>Merged KG · <code>gene_associated_with_condition</code></td><td class="n">682,584</td><td><strong>NCBIGene 98.6%</strong> — genes</td><td>EFO 59.7%, OBA 26.3%, MONDO 13.0%</td></tr>
+        <tr class="hi"><td>Pharos v319 · <code>genetically_associated_with</code></td><td class="n">95,484</td><td><strong>NCBIGene 99.9%</strong> — genes</td><td>MONDO 70.5%, UMLS 20.6%, HP 5.3%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Pharos's <code>genetically_associated_with</code> is a <strong>gene → disease</strong> edge. In the merged graph that name denotes a <strong>variant → disease</strong> edge — not one of its 771,883 subjects is a gene. The merged graph's gene → disease edge is <code>gene_associated_with_condition</code>. The two highlighted rows are the same relation under different labels, and those are the rows this comparison uses.</p>
+  <p>Joining on the shared name instead compares genes against variants and yields <strong>0 shared pairs out of 74,532</strong>, because an <code>NCBIGene:</code> CURIE is never a <code>DBSNP:</code> CURIE. That would not be a worse comparison; it would be no comparison.</p>
+  <div class="note ok">
+    <span class="lbl">Neither graph was edited</span>
+    <p>Both vocabularies are left exactly as their sources produced them. The SRI predicate service resolves Pharos's source relation <code>WIKIDATA_PROPERTY:P2293</code> ("genetic association") to <code>biolink:genetically_associated_with</code>; that is the authoritative answer and what ORION would produce. ROBOKOP independently uses the same name for variant–disease edges.</p>
+    <p>The equivalence is therefore declared at comparison time, by the <code>--pharos-predicate</code> flag when the split is built, and recorded in <code>out/split_gawc319_meta.json</code> as <code>"pharos_predicate"</code>. It is visible and auditable in the split's metadata rather than baked into the data.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Method</h2></div>
+  <p>The encoder never sees the target task. Each graph is encoded on its own edges, frozen, and only then is a decoder fitted on the shared pairs. Both graphs get identical treatment.</p>
+
+  <p class="stepno">Step 1 — train the encoder, unsupervised</p>
+  <p>2-layer GraphSAGE with a DistMult scorer, trained by link reconstruction over all of the graph's own edges, every predicate. A positive is a real edge; a negative is that edge with its subject or object replaced by a uniformly random node. Up to 2,000 optimiser steps at 4,096 edges per step, evaluated every 200 steps against a held-back 1% slice of the graph's edges, early-stopped with patience 5.</p>
+
+  <p class="stepno">Step 2 — freeze</p>
+  <p>The best-reconstruction state is reloaded and one forward pass emits a fixed representation per node for every node the decoder will ask about. Nothing in the encoder updates after this point.</p>
+
+  <p class="stepno">Step 3 — fit the decoder on the overlap</p>
+  <p>A DistMult head — one learned relation vector of 128 values — over the frozen representations. Full-batch Adam, lr 0.01, up to 200 epochs, early-stopped on validation ROC with patience 20.</p>
+
+  <h3>How the encoder and decoder work</h3>
+  <p><strong>Encoder — GraphSAGE, two layers.</strong> Each node starts as a feature vector: a multi-hot over the commonest biolink categories, plus <code>log1p</code> of its training degree and an is-isolated flag (50 values on the merged KG, 9 on Pharos), concatenated with a learned 64-value embedding for that node. One layer is</p>
+  <pre>h' = W_self · h  +  W_neighbour · mean(h of sampled neighbours)</pre>
+  <p>with LayerNorm after each layer and ReLU plus dropout between the two. Two layers means a node's representation draws on its 2-hop neighbourhood. Both graphs are far too large for full-batch message passing — the merged KG would materialise roughly 12 GB per layer — so each step samples an induced subgraph around that batch's endpoints, capped at 10 then 5 neighbours per hop while training and 25 then 10 at inference, drawn with replacement. Edges are made symmetric for aggregation, and a node with no sampled neighbour aggregates to zeros. Output is 128 values per node.</p>
+  <p><strong>Decoder — DistMult.</strong> A triple is scored by the elementwise product of three vectors, summed:</p>
+  <pre>score(s, p, o) = Σ  h_s ⊙ r_p ⊙ h_o</pre>
+  <p>During encoder training <code>r_p</code> is one learned vector per predicate — 31 of them on the merged KG, 6 on Pharos — which is what makes the reconstruction task multi-relational rather than a plain "does an edge exist" test. In step 3 only one relation is in play, so the fitted decoder is a single 128-value <code>r</code>. The score is a logit, trained with binary cross-entropy.</p>
+  <p><strong>Negatives are 1:1 in both stages.</strong> Each positive is paired with exactly one negative, so an encoder step is 4,096 positives and 4,096 negatives. They are generated differently at each stage, and the difference matters when reading section 06: the encoder corrupts either the subject or the object (a 50/50 coin flip) with a node drawn uniformly from the whole graph, while the decoder's negatives are type-matched — drawn from the observed subject and object pools — and filtered against known pairs. The encoder's task is therefore much the easier of the two.</p>
+  <div class="note">
+    <span class="lbl">One property worth knowing</span>
+    <p>DistMult is symmetric: <code>score(s, p, o) = score(o, p, s)</code>, because multiplication commutes. It cannot represent edge direction. For this target that costs little — subjects are genes, objects are diseases, and no pair is scored in both directions — but it would matter for a relation whose two endpoints are the same type.</p>
+  </div>
+
+  <h3>Embeddings produced</h3>
+  <p>Both runs froze the same number of node representations, because both decode the identical shared split: its 5,052 distinct subjects and 6,528 distinct objects.</p>
+  <div class="kv">
+    <div><div class="k">Frozen per seed</div><div class="v">11,580</div><div class="s">node representations, each graph</div></div>
+    <div><div class="k">Dimension</div><div class="v">128</div><div class="s">2 SAGE layers</div></div>
+    <div><div class="k">Across 10 seeds</div><div class="v">115,800</div><div class="s">per graph — a fresh encoder per seed</div></div>
+    <div><div class="k">Decoder parameters</div><div class="v">128</div><div class="s">one DistMult relation vector</div></div>
+  </div>
+  <p>A separate encoder is trained for each seed, because each seed holds out different pairs. Twenty encoders were trained in total.</p>
+
+  <h3>Encoder size</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Parameters</th><th class="n">Merged KG</th><th class="n">Pharos v319</th></tr></thead>
+      <tbody>
+        <tr><td>Input features (category multi-hot + degree + isolated flag)</td><td class="n">50</td><td class="n">9</td></tr>
+        <tr><td>Learned node embedding width</td><td class="n">64</td><td class="n">64</td></tr>
+        <tr><td>Node embedding table</td><td class="n">77,594,560</td><td class="n">19,706,688</td></tr>
+        <tr><td>SAGE layers, norms, relation table</td><td class="n">66,688</td><td class="n">52,992</td></tr>
+        <tr class="tot"><td>Total</td><td class="n">77,661,248</td><td class="n">19,759,680</td></tr>
+        <tr class="hi"><td>Share in the embedding table</td><td class="n">99.9%</td><td class="n">99.7%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Almost the whole model is a free vector per node. That component is transductive — a node with no training edge keeps its random row — which is what the unseen-endpoint figures in section 06 measure.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>The split</h2></div>
+  <p>One split, built once, used by both graphs. Only pairs carrying the target relation in <em>both</em> graphs can be split identically, so the split covers the intersection; each graph keeps all of its own other edges for message passing.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Split <code>gawc319</code></th><th class="n">Pairs</th></tr></thead>
+      <tbody>
+        <tr><td>Target pairs in merged KG</td><td class="n">682,584</td></tr>
+        <tr><td>Target pairs in Pharos v319</td><td class="n">95,484</td></tr>
+        <tr class="hi"><td><strong>Shared — the split</strong></td><td class="n">15,574</td></tr>
+        <tr><td>Merged-KG only</td><td class="n">667,010</td></tr>
+        <tr><td>Pharos only</td><td class="n">79,910</td></tr>
+        <tr><td>Jaccard</td><td class="n">0.0204</td></tr>
+        <tr class="tot"><td>Train / validation / test, per seed</td><td class="n">12,459 / 1,557 / 1,558</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The two graphs do not share a node table, so the join is on CURIEs. Both runs loaded the identical 15,574 pairs and identical node pools (5,052 subjects, 6,528 objects).</p>
+
+  <h3>Hold-out</h3>
+  <p>Because the encoder trains on edges directly, a held-out pair is removed under <em>any</em> predicate and in <em>either</em> direction — not only where it carries the target predicate. Leaving it in under another predicate would train the encoder on exactly what the decoder is later scored on, and that leak reads as a high AUC rather than as an error.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Encoder training edges, seed 0</th><th class="n">Merged KG</th><th class="n">Pharos v319</th></tr></thead>
+      <tbody>
+        <tr><td>Edges available</td><td class="n">11,384,760</td><td class="n">696,375</td></tr>
+        <tr><td>Held out (validation + test pairs)</td><td class="n">4,131</td><td class="n">3,137</td></tr>
+        <tr class="tot"><td>Trained on</td><td class="n">11,380,629</td><td class="n">693,238</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Verified directly: zero held-out pairs survive into either encoder's edge set.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Evaluation protocol</h2></div>
+  <ul>
+    <li><strong>ROC AUC</strong> on 1,558 held-out positives against 1,558 sampled negatives, per seed, 10 seeds. Chance = 0.500.</li>
+    <li><strong>PR AUC</strong> reported only beside its prevalence, which is 0.500 by construction. A PR AUC near 0.5 is chance, not skill.</li>
+    <li><strong>Negatives</strong> are type-matched — drawn from the observed subject and object pools — and filtered so that a negative is never a pair either graph asserts.</li>
+    <li><strong>Degree baseline</strong> scored on the identical test rows, from each graph's own training edges. It is there so that "this graph wins" cannot reduce to "this graph puts more edges on hub nodes".</li>
+    <li><strong>Seen / unseen</strong> breakdown of test edges, by whether both endpoints appear in the encoder's training edges.</li>
+  </ul>
+  <div class="note ok">
+    <span class="lbl">The two runs now draw the same negatives</span>
+    <p>Negatives are drawn in the <em>split file's own CURIE space</em> — pools ordered by CURIE, and a filter of every pair the file lists — none of which depends on the graph being scored. Both runs therefore report the identical pools (5,052 / 6,528), the identical 762,494-pair filter, and the same negative pairs from a given seed. The comparison is paired row for row.</p>
+    <p>This replaces the earlier arrangement, where pools were built over each graph's own node ids. The same CURIE set came out in a different order, so the same RNG stream picked different entities — measured, only 0–2 of each seed's 1,558 test negatives coincided between the two runs — and a filter miss in one graph but not the other desynchronised the stream for every later row. The numbers below are from runs made after that fix; the ordering is unchanged from before it, and the magnitudes moved by less than 0.002.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Results</h2></div>
+
+  <figure>
+    <div class="chartbox">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Per-seed ROC AUC. Pharos v319 clusters near 0.805, merged KG near 0.617, both degree baselines near 0.601.">
+        <g stroke="var(--rule)" stroke-width="1">
+          <line x1="315" y1="44" x2="315" y2="252"></line>
+          <line x1="465" y1="44" x2="465" y2="252"></line>
+          <line x1="615" y1="44" x2="615" y2="252"></line>
+        </g>
+        <line x1="165" y1="44" x2="165" y2="252" stroke="var(--ink-3)" stroke-width="1.5"></line>
+        <text x="165" y="36" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-3)" text-anchor="middle">chance 0.50</text>
+
+        <g font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--ink)">
+          <text x="155" y="74" text-anchor="end">Pharos v319 — GNN</text>
+          <text x="155" y="112" text-anchor="end" fill="var(--ink-2)">Pharos v319 — degree</text>
+          <text x="155" y="172" text-anchor="end">Merged KG — GNN</text>
+          <text x="155" y="210" text-anchor="end" fill="var(--ink-2)">Merged KG — degree</text>
+        </g>
+
+        <g fill="var(--series-2)" stroke="var(--surface)" stroke-width="2">
+          <circle cx="629.6" cy="70" r="5.5"><title>seed 0 · 0.8097</title></circle>
+          <circle cx="589.3" cy="70" r="5.5"><title>seed 1 · 0.7828</title></circle>
+          <circle cx="633.6" cy="70" r="5.5"><title>seed 2 · 0.8124</title></circle>
+          <circle cx="611.8" cy="70" r="5.5"><title>seed 3 · 0.7978</title></circle>
+          <circle cx="620.1" cy="70" r="5.5"><title>seed 4 · 0.8034</title></circle>
+          <circle cx="622.9" cy="70" r="5.5"><title>seed 5 · 0.8053</title></circle>
+          <circle cx="623.3" cy="70" r="5.5"><title>seed 6 · 0.8055</title></circle>
+          <circle cx="609.0" cy="70" r="5.5"><title>seed 7 · 0.7960</title></circle>
+          <circle cx="647.4" cy="70" r="5.5"><title>seed 8 · 0.8216</title></circle>
+          <circle cx="642.1" cy="70" r="5.5"><title>seed 9 · 0.8181</title></circle>
+        </g>
+        <line x1="623.0" y1="56" x2="623.0" y2="84" stroke="var(--series-2)" stroke-width="2.5"></line>
+        <text x="623.0" y="50" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="var(--series-2)" text-anchor="middle">0.805</text>
+
+        <g fill="none" stroke="var(--baseline)" stroke-width="1.5">
+          <circle cx="307.1" cy="108" r="4"><title>seed 0 · 0.5947</title></circle>
+          <circle cx="309.0" cy="108" r="4"><title>seed 1 · 0.5960</title></circle>
+          <circle cx="312.5" cy="108" r="4"><title>seed 2 · 0.5983</title></circle>
+          <circle cx="325.7" cy="108" r="4"><title>seed 3 · 0.6072</title></circle>
+          <circle cx="317.9" cy="108" r="4"><title>seed 4 · 0.6019</title></circle>
+          <circle cx="305.1" cy="108" r="4"><title>seed 5 · 0.5934</title></circle>
+          <circle cx="321.0" cy="108" r="4"><title>seed 6 · 0.6040</title></circle>
+          <circle cx="312.1" cy="108" r="4"><title>seed 7 · 0.5981</title></circle>
+          <circle cx="335.4" cy="108" r="4"><title>seed 8 · 0.6136</title></circle>
+          <circle cx="313.9" cy="108" r="4"><title>seed 9 · 0.5992</title></circle>
+        </g>
+        <line x1="316.0" y1="96" x2="316.0" y2="120" stroke="var(--baseline)" stroke-width="2" stroke-dasharray="3 2"></line>
+        <text x="316.0" y="133" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">0.601</text>
+
+        <g fill="var(--series-1)" stroke="var(--surface)" stroke-width="2">
+          <circle cx="341.9" cy="168" r="5.5"><title>seed 0 · 0.6180</title></circle>
+          <circle cx="338.4" cy="168" r="5.5"><title>seed 1 · 0.6156</title></circle>
+          <circle cx="348.1" cy="168" r="5.5"><title>seed 2 · 0.6221</title></circle>
+          <circle cx="360.1" cy="168" r="5.5"><title>seed 3 · 0.6300</title></circle>
+          <circle cx="337.5" cy="168" r="5.5"><title>seed 4 · 0.6150</title></circle>
+          <circle cx="350.9" cy="168" r="5.5"><title>seed 5 · 0.6239</title></circle>
+          <circle cx="337.6" cy="168" r="5.5"><title>seed 6 · 0.6151</title></circle>
+          <circle cx="333.2" cy="168" r="5.5"><title>seed 7 · 0.6121</title></circle>
+          <circle cx="323.9" cy="168" r="5.5"><title>seed 8 · 0.6060</title></circle>
+          <circle cx="326.2" cy="168" r="5.5"><title>seed 9 · 0.6075</title></circle>
+        </g>
+        <line x1="339.8" y1="154" x2="339.8" y2="182" stroke="var(--series-1)" stroke-width="2.5"></line>
+        <text x="339.8" y="148" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="var(--series-1)" text-anchor="middle">0.617</text>
+
+        <g fill="none" stroke="var(--baseline)" stroke-width="1.5">
+          <circle cx="321.2" cy="206" r="4"><title>seed 0 · 0.6041</title></circle>
+          <circle cx="310.6" cy="206" r="4"><title>seed 1 · 0.5971</title></circle>
+          <circle cx="327.1" cy="206" r="4"><title>seed 2 · 0.6081</title></circle>
+          <circle cx="319.3" cy="206" r="4"><title>seed 3 · 0.6029</title></circle>
+          <circle cx="312.6" cy="206" r="4"><title>seed 4 · 0.5984</title></circle>
+          <circle cx="322.1" cy="206" r="4"><title>seed 5 · 0.6047</title></circle>
+          <circle cx="308.4" cy="206" r="4"><title>seed 6 · 0.5956</title></circle>
+          <circle cx="310.0" cy="206" r="4"><title>seed 7 · 0.5966</title></circle>
+          <circle cx="323.0" cy="206" r="4"><title>seed 8 · 0.6053</title></circle>
+          <circle cx="308.4" cy="206" r="4"><title>seed 9 · 0.5956</title></circle>
+        </g>
+        <line x1="316.3" y1="194" x2="316.3" y2="218" stroke="var(--baseline)" stroke-width="2" stroke-dasharray="3 2"></line>
+        <text x="316.3" y="231" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">0.601</text>
+
+        <line x1="165" y1="252" x2="690" y2="252" stroke="var(--rule)" stroke-width="1"></line>
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-2)" text-anchor="middle">
+          <text x="165" y="270">0.50</text>
+          <text x="315" y="270">0.60</text>
+          <text x="465" y="270">0.70</text>
+          <text x="615" y="270">0.80</text>
+        </g>
+        <text x="427" y="290" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--ink-3)" text-anchor="middle">ROC AUC — one dot per seed</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-2)"></i> Pharos v319 (GNN)</span>
+      <span><i class="swatch" style="background:var(--series-1)"></i> Merged KG (GNN)</span>
+      <span><i class="swatch line"></i> degree baseline, and series means</span>
+    </div>
+    <figcaption>Every dot is one of ten independent splits. Hover a dot for its seed and value. The full per-seed table is in <code>out/*_per_seed.tsv</code>.</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Graph</th><th>Model</th><th class="n">ROC mean</th><th class="n">SD</th><th class="n">Min</th><th class="n">Max</th><th class="n">PR mean</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td>Pharos v319</td><td>GNN</td><td class="n">0.805</td><td class="n">0.011</td><td class="n">0.783</td><td class="n">0.822</td><td class="n">0.812</td></tr>
+        <tr><td>Pharos v319</td><td>degree</td><td class="n">0.601</td><td class="n">0.006</td><td class="n">0.593</td><td class="n">0.614</td><td class="n">0.597</td></tr>
+        <tr><td>Merged KG</td><td>GNN</td><td class="n">0.617</td><td class="n">0.007</td><td class="n">0.606</td><td class="n">0.630</td><td class="n">0.633</td></tr>
+        <tr><td>Merged KG</td><td>degree</td><td class="n">0.601</td><td class="n">0.005</td><td class="n">0.596</td><td class="n">0.608</td><td class="n">0.609</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Gap over the degree baseline: <strong>Pharos +0.205</strong>, <strong>merged KG +0.016</strong>. PR AUC baseline is 0.500. On the merged graph the encoder adds almost nothing a degree count does not already give.</p>
+
+  <h3>Seen vs unseen endpoints</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Graph</th><th>Model</th><th class="n">Both seen</th><th class="n">Has unseen</th><th class="n">Unseen positives / seed</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td>Pharos v319</td><td>GNN</td><td class="n">0.827</td><td class="n">0.174</td><td class="n">50.6</td></tr>
+        <tr><td>Pharos v319</td><td>degree</td><td class="n">0.616</td><td class="n">0.146</td><td class="n">50.6</td></tr>
+        <tr><td>Merged KG</td><td>GNN</td><td class="n">0.657</td><td class="n">0.042</td><td class="n">103.0</td></tr>
+        <tr><td>Merged KG</td><td>degree</td><td class="n">0.640</td><td class="n">0.047</td><td class="n">103.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Both models fall far below chance on edges with an unseen endpoint. With 99.9% of parameters in a free per-node embedding table, an endpoint with no training edge keeps its random row, and such rows score systematically low rather than randomly — which is why the figure lands near 0.04 rather than near 0.50. <strong>Nothing here transfers to a gene or disease the encoder has not seen</strong>; these models predict links among entities they already know. The headline gap is a statement about familiar entities, which is where 93–97% of the test rows sit.</p>
+
+  <h3>Encoder behaviour</h3>
+  <div class="kv">
+    <div><div class="k">Reconstruction ROC</div><div class="v">0.997 / 0.998</div><div class="s">merged KG / Pharos</div></div>
+    <div><div class="k">Decoder validation ROC</div><div class="v">0.628 / 0.802</div><div class="s">seed 0, best</div></div>
+    <div><div class="k">Wall clock</div><div class="v">1948s / 822s</div><div class="s">10 seeds each, one L40S</div></div>
+  </div>
+  <p>The reconstruction figures are not a quality measure and should not be read as skill. Their negatives are uniformly random node substitutions, which on graphs this size are almost never plausible edges; both runs saturate above 0.99 within 400 of their 2,000 steps. The decoder's type-matched, filtered negatives are a far harder problem, and that is where the two graphs separate.</p>
+
+  <h3>What the gap does and does not establish</h3>
+  <p>On this target, this split and this method, Pharos v319 predicts held-out gene–disease links far better than the merged KG, and the margin is not explained by degree. What produced the margin is <em>not</em> established by these two runs: the composition in section 01 is the leading hypothesis — 84% of Pharos's edges on the drug–gene–disease axis against 68% anatomy and expression in the merged graph, plus an 11.6× denser disease ontology — but a hypothesis is not a measurement, and no cause should be quoted from this batch alone.</p>
+  <p>The scope is also narrow by construction: gene–disease links only, on the 15,574 pairs both graphs assert, a Jaccard of 0.020. The result says nothing about the 667,010 pairs only the merged KG carries, the 79,910 only Pharos carries, or any other relation.</p>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">Jobs 8987649 (merged KG, 1948.0s) and 8987650 (Pharos v319, 822.1s), run 2026-11-12 · commit 1f6d8cd · branch linkpred/unsupervised-sage · torch 2.11.0+cu130 · python 3.13.18 · NVIDIA L40S · source tables in out/kg_gawc319_unsup_*.tsv and out/pharos319_gawc319_unsup_*.tsv</p>
+</footer>
+
+</div>
+
+</body>
+</html>

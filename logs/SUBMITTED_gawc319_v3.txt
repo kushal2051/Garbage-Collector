@@ -1,0 +1,3 @@
+commit 1f6d8cd - pool rename finished in run_seed_unsupervised; resubmit of 8982863/8982864 on -p tropshalab
+8987649 kg          --objective unsupervised --seeds 10 --split out/split_gawc319_pairs.tsv --tag kg_gawc319_unsup
+8987650 pharos319   --objective unsupervised --seeds 10 --split out/split_gawc319_pairs.tsv --tag pharos319_gawc319_unsup

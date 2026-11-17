@@ -1,0 +1,2 @@
+8941597 kg  --graph kg     --predicate biolink:gene_associated_with_condition --split out/split_gene_associated_with_condition_pairs.tsv --tag kg_gawc
+8941598 pha --graph pharos --predicate biolink:gene_associated_with_condition --split out/split_gene_associated_with_condition_pairs.tsv --tag pharos_gawc

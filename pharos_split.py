@@ -38,10 +38,23 @@ ap.add_argument("--seeds", type=int, default=10, help="how many independent spli
 ap.add_argument("--train-frac", type=float, default=0.8)
 ap.add_argument("--val-frac", type=float, default=0.1)
 ap.add_argument("--tag", default=None, help="output name (default: the predicate's local name)")
+ap.add_argument("--kg-graph", default="kg", help="the merged graph's prepared tag")
+ap.add_argument("--pharos-graph", default="pharos", help="the baseline graph's prepared tag")
+ap.add_argument(
+    "--pharos-predicate",
+    default=None,
+    help="the baseline graph's name for the SAME relation, when it differs. Pharos v319 calls "
+    "the gene-disease edge biolink:genetically_associated_with, but the merged graph uses that "
+    "name for a VARIANT-disease edge (subjects are DBSNP) and calls the gene-disease one "
+    "biolink:gene_associated_with_condition. Matched on the shared name the overlap is 0; "
+    "aliased, it is 15,574. Getting this wrong yields an empty or meaningless split.",
+)
 args = ap.parse_args()
 
 tag = args.tag or args.predicate.split(":")[-1]
-kg_npz, pharos_npz = config.OUT / "kg.npz", config.OUT / "pharos.npz"
+pharos_predicate = args.pharos_predicate or args.predicate
+kg_npz = config.OUT / f"{args.kg_graph}.npz"
+pharos_npz = config.OUT / f"{args.pharos_graph}.npz"
 config.require(kg_npz, pharos_npz)
 pairs_tsv = config.OUT / f"split_{tag}_pairs.tsv"
 meta_json = config.OUT / f"split_{tag}_meta.json"
@@ -52,22 +65,35 @@ pharos = kgraph.load(pharos_npz)
 print("kg     ", kg.describe(), flush=True)
 print("pharos ", pharos.describe(), flush=True)
 
-# both graphs were prepared against the same node table, so node ids are comparable
-if not np.array_equal(kg.node_ids[:1000], pharos.node_ids[:1000]):
-    raise SystemExit(
-        "the two graphs were not prepared against the same node table; re-run kg_prepare.py "
-        "for both tags without --nodes"
-    )
+# The two graphs need NOT share a node table. Each is prepared against its own, so the
+# baseline keeps the nodes the merged graph lacks -- for Pharos v319 that is 91% of them,
+# nearly all compounds. The join is therefore on CURIEs, the one id space both agree on.
+same_table = len(kg.node_ids) == len(pharos.node_ids) and np.array_equal(
+    kg.node_ids[:1000], pharos.node_ids[:1000]
+)
+print(f"node tables {'shared' if same_table else 'independent; joining on CURIEs'}", flush=True)
 
 
-def pairs_of(graph: kgraph.KnowledgeGraph, predicate: str) -> set[tuple[int, int]]:
+def pairs_of(graph: kgraph.KnowledgeGraph, predicate: str) -> set[tuple[str, str]]:
+    """The predicate's (subject, object) pairs as CURIEs."""
     if predicate not in graph.predicates:
         return set()
     rows = graph.edges[graph.edges[:, 1] == graph.predicate_id(predicate)]
-    return {(int(s), int(o)) for s, _, o in rows}
+    ids = graph.node_ids
+    return {(str(ids[s]), str(ids[o])) for s, _, o in rows}
 
 
-kg_pairs, pharos_pairs = pairs_of(kg, args.predicate), pairs_of(pharos, args.predicate)
+kg_pairs = pairs_of(kg, args.predicate)
+pharos_pairs = pairs_of(pharos, pharos_predicate)
+if pharos_predicate != args.predicate:
+    print(f"pharos predicate aliased: {pharos_predicate} -> {args.predicate}", flush=True)
+if pharos_pairs and not kg_pairs:
+    raise SystemExit(f"{args.predicate} is not in {kg_npz}; read out/{args.kg_graph}_census.tsv")
+if kg_pairs and not pharos_pairs:
+    raise SystemExit(
+        f"{pharos_predicate} is not in {pharos_npz}; read out/{args.pharos_graph}_census.tsv "
+        "and pass --pharos-predicate if the baseline names this relation differently"
+    )
 shared = sorted(kg_pairs & pharos_pairs)
 print(
     f"{args.predicate}: {len(kg_pairs):,} pairs in kg, {len(pharos_pairs):,} in pharos, "
@@ -105,15 +131,19 @@ with open(pairs_tsv, "w") as fh:
     fh.write(f"subject\tobject\tin_kg\tin_pharos\t{columns}\n")
     for row, (subject, obj) in enumerate(shared):
         assigned = "\t".join(splits[seed][row] for seed in range(args.seeds))
-        fh.write(f"{kg.node_ids[subject]}\t{kg.node_ids[obj]}\t1\t1\t{assigned}\n")
+        fh.write(f"{subject}\t{obj}\t1\t1\t{assigned}\n")
     blank = "\t".join("" for _ in range(args.seeds))
     for subject, obj in only_kg:
-        fh.write(f"{kg.node_ids[subject]}\t{kg.node_ids[obj]}\t1\t0\t{blank}\n")
+        fh.write(f"{subject}\t{obj}\t1\t0\t{blank}\n")
     for subject, obj in only_pharos:
-        fh.write(f"{kg.node_ids[subject]}\t{kg.node_ids[obj]}\t0\t1\t{blank}\n")
+        fh.write(f"{subject}\t{obj}\t0\t1\t{blank}\n")
 
 meta = {
     "predicate": args.predicate,
+    "pharos_predicate": pharos_predicate,
+    "kg_graph": args.kg_graph,
+    "pharos_graph": args.pharos_graph,
+    "shared_node_table": bool(same_table),
     "seeds": args.seeds,
     "train_frac": args.train_frac,
     "val_frac": args.val_frac,

@@ -5,7 +5,10 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=01:00:00
-#SBATCH --partition=tropshalab
+#SBATCH --partition=general,tropshalab
+# CPU only, so it also takes `general`, which is usually idle. NOT l40-gpu: that partition
+# requires --qos=gpu_access, and that QOS requires a GPU (QOSMinGRES), so a CPU-only job
+# listing it is rejected outright with "Invalid qos specification".
 #SBATCH --output=logs/pharos_split.%j.log
 #SBATCH --error=logs/pharos_split.%j.log
 #

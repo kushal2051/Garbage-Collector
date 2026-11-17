@@ -112,6 +112,92 @@ def read_nodes(path: str | Path) -> tuple[dict[str, int], np.ndarray, np.ndarray
     )
 
 
+# CURIE prefix -> biolink category, for a graph whose edge file ships no nodes.jsonl.
+# Deliberately coarse. It exists so a standalone graph (Pharos v319, say) can be prepared
+# against ITS OWN node table instead of being intersected with the merged graph's, which
+# silently drops every node the merged graph lacks -- 91% of Pharos's, nearly all compounds.
+# The categories only ever feed `features()`, a multi-hot; a coarse but consistent label is
+# worth more there than an exact one that covers a tenth of the nodes.
+PREFIX_CATEGORY = {
+    "PUBCHEM.COMPOUND": "biolink:SmallMolecule",
+    "CHEMBL.COMPOUND": "biolink:SmallMolecule",
+    "CHEBI": "biolink:SmallMolecule",
+    "UNII": "biolink:SmallMolecule",
+    "GTOPDB": "biolink:SmallMolecule",
+    "DRUGBANK": "biolink:SmallMolecule",
+    "RXCUI": "biolink:Drug",
+    "NCBIGene": "biolink:Gene",
+    "HGNC": "biolink:Gene",
+    "ENSEMBL": "biolink:Gene",
+    "UniProtKB": "biolink:Protein",
+    "PR": "biolink:Protein",
+    "MONDO": "biolink:Disease",
+    "DOID": "biolink:Disease",
+    "OMIM": "biolink:Disease",
+    "MESH": "biolink:Disease",
+    "EFO": "biolink:Disease",
+    "UMLS": "biolink:Disease",
+    "orphanet": "biolink:Disease",
+    "HP": "biolink:PhenotypicFeature",
+    "OBA": "biolink:PhenotypicFeature",
+    "GO": "biolink:BiologicalProcessOrActivity",
+    "DBSNP": "biolink:SequenceVariant",
+    "CAID": "biolink:SequenceVariant",
+    "UBERON": "biolink:GrossAnatomicalStructure",
+    "CL": "biolink:Cell",
+    "REACT": "biolink:Pathway",
+    "NCIT": "biolink:NamedThing",
+    "DGIdb": "biolink:NamedThing",
+}
+UNKNOWN_CATEGORY = "biolink:NamedThing"
+
+
+def category_for(curie: str) -> str:
+    """The biolink category a CURIE's prefix implies, or `biolink:NamedThing`."""
+    return PREFIX_CATEGORY.get(curie.split(":", 1)[0], UNKNOWN_CATEGORY)
+
+
+def read_nodes_from_edges(
+    path: str | Path,
+) -> tuple[dict[str, int], np.ndarray, np.ndarray, list]:
+    """Build a node table from an edges.jsonl alone, for a graph that ships no nodes.jsonl.
+
+    Same return shape as `read_nodes`, so every later stage is unchanged. Nodes are the
+    CURIEs that actually appear as a subject or an object, in first-seen order, and the
+    category is `category_for(curie)`.
+    """
+    index: dict[str, int] = {}
+    node_ids: list[str] = []
+    set_index: dict[tuple[str, ...], int] = {}
+    category_sets: list[tuple[str, ...]] = []
+    category = array("i")
+
+    def add(curie: str) -> None:
+        if curie in index:
+            return
+        index[curie] = len(node_ids)
+        node_ids.append(curie)
+        key = (category_for(curie),)
+        if key not in set_index:
+            set_index[key] = len(category_sets)
+            category_sets.append(key)
+        category.append(set_index[key])
+
+    for record in _jsonl(Path(path)):
+        subject, obj = record.get("subject"), record.get("object")
+        if not (subject and obj):
+            continue
+        add(subject)
+        add(obj)
+
+    return (
+        index,
+        np.array(node_ids, dtype=object),
+        np.frombuffer(category, dtype=np.int32).copy(),
+        category_sets,
+    )
+
+
 def read_edges(
     path: str | Path, index: dict[str, int], keep: set[str] | None = None
 ) -> tuple[np.ndarray, list[str], Counter, Counter]:

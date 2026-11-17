@@ -58,9 +58,18 @@ outside the repo.
   model and the neighbour sampler, for the reason `rotate.py` exists: written once, so three
   stages cannot drift on what a node id means. Both are numpy/torch only and are tested against
   hand-built stand-ins.
-- **Both graphs are prepared against one node table** (the merged graph's `nodes.jsonl`). An
-  identical train/test split needs one node id space, and it is also where Pharos's categories
-  come from, since `pharos_edges.jsonl` ships no nodes.
+- **Graphs may share one node table or each keep its own.** The default maps both through the
+  merged graph's `nodes.jsonl`, so an identical split exists by construction. That costs a
+  standalone baseline most of its graph -- for Pharos v319 normalized, 91% of its nodes and
+  64.7% of its edges, nearly all of them compounds -- so `kg_prepare.py --nodes-from-edges`
+  builds a graph its own table with categories from the CURIE prefix, and `pharos_split.py`
+  joins the two on CURIEs. The split file has always held CURIEs, so nothing downstream changes.
+- **`gnn.py` has two objectives and they are not interchangeable.** `--objective supervised`
+  trains the encoder on the target predicate alone, which on the shared split is 12,367 edges
+  and four optimiser steps an epoch. `--objective unsupervised` trains the encoder on all of a
+  graph's own edges, freezes it, and fits only a decoder on the overlapping pairs. Report the
+  step budget beside any comparison of the two: on a synthetic control they tie once the budget
+  is matched, and differ by 0.4 ROC when it is not.
 - **Unlike KGB-CIA there is no `cli.py` / `main(argv) -> int` contract.** There is no pipeline
   runner to satisfy — stages are submitted individually through `sbatch` — so adopting that
   contract would be ceremony without a caller. This is a deliberate deviation.
